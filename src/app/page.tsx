@@ -38,6 +38,8 @@ export default function SpreadsheetPage() {
     editingValue,
     setEditingValue,
     updateCell,
+    mergeSelection,
+    unmergeSelection,
     insertRow,
     deleteRow,
     insertCol,
@@ -50,12 +52,12 @@ export default function SpreadsheetPage() {
     addSheet,
     renameSheet,
     removeSheet,
-    selectRow,
-    selectCol,
     undo,
     redo,
     canUndo,
     canRedo,
+    selectRow,
+    selectCol,
   } = useSheetStore(rows, cols);
 
   const [aiOpen, setAiOpen] = useState(false);
@@ -145,6 +147,8 @@ export default function SpreadsheetPage() {
           onInsertCol={() => selectedCell && insertCol(coordinateToIndex(selectedCell)!.col)}
           onDeleteCol={() => selectedCell && deleteCol(coordinateToIndex(selectedCell)!.col)}
           onSort={(dir) => sortRange(dir)}
+          onMerge={mergeSelection}
+          onUnmerge={unmergeSelection}
           onImportCSV={() => {}} onExportCSV={() => {}} onExportJSON={() => {}}
           canUndo={canUndo} canRedo={canRedo}
         />

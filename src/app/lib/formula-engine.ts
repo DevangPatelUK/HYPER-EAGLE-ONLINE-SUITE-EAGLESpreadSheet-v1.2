@@ -11,6 +11,9 @@ export type CellData = {
   format?: 'number' | 'currency' | 'percent' | 'text';
   type?: 'text' | 'number' | 'date' | 'checkbox' | 'select';
   options?: string[];
+  rowSpan?: number;
+  colSpan?: number;
+  hiddenByMerge?: string; // Coordinate of the primary cell in the merge
 };
 
 export type SpreadsheetData = Record<string, CellData>;
@@ -66,7 +69,6 @@ function parseRange(rangeStr: string): string[] {
 export function formatCellValue(value: string, format?: string): string {
   if (!value) return '';
   
-  // Handle Booleans from Checkboxes
   if (value.toUpperCase() === 'TRUE') return '✓';
   if (value.toUpperCase() === 'FALSE') return '';
 
@@ -152,7 +154,6 @@ export function evaluateFormula(
       const values = coords.map(c => {
         const val = getCellValue(`${workbook[targetSheetId].name}!${c}`, workbook, currentSheetId, visited);
         if (val.startsWith('#') && val !== '#CIRCULAR!') throw new Error(val);
-        // Handle checkbox values for aggregation
         if (val.toUpperCase() === 'TRUE') return 1;
         if (val.toUpperCase() === 'FALSE') return 0;
         return parseFloat(val || '0');

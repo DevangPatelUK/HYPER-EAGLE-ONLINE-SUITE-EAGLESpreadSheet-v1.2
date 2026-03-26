@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Cell } from './Cell';
-import { indexToCoordinate } from '@/app/lib/formula-engine';
+import { indexToCoordinate, coordinateToIndex } from '@/app/lib/formula-engine';
 import { SpreadsheetData } from '@/app/lib/formula-engine';
 import { cn } from '@/lib/utils';
 
@@ -86,7 +86,13 @@ export const Grid: React.FC<GridProps> = ({
         ))}
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: `40px repeat(${cols}, 120px)` }}>
+      <div 
+        className="grid relative" 
+        style={{ 
+          gridTemplateColumns: `40px repeat(${cols}, 120px)`,
+          gridAutoRows: '32px' 
+        }}
+      >
         {Array.from({ length: rows }).map((_, r) => (
           <React.Fragment key={r}>
             <div 
@@ -95,6 +101,7 @@ export const Grid: React.FC<GridProps> = ({
                 "bg-muted border-r border-b border-border flex items-center justify-center text-xs font-medium text-muted-foreground sticky left-0 z-20 cursor-pointer hover:bg-muted-foreground/10 transition-colors",
                 selectionRange.includes(indexToCoordinate(r, 0)) && selectionRange.includes(indexToCoordinate(r, cols - 1)) && "bg-primary/20 text-primary font-bold"
               )}
+              style={{ gridRowStart: r + 1, gridColumnStart: 1 }}
               role="rowheader"
               aria-label={`Row ${r + 1}`}
             >
@@ -102,11 +109,24 @@ export const Grid: React.FC<GridProps> = ({
             </div>
             {Array.from({ length: cols }).map((_, c) => {
               const coord = indexToCoordinate(r, c);
+              const cellData = data[coord];
+              
+              if (cellData?.hiddenByMerge) return null;
+
               return (
-                <div key={coord} role="row">
+                <div 
+                  key={coord} 
+                  role="row"
+                  style={{ 
+                    gridRowStart: r + 1, 
+                    gridColumnStart: c + 2,
+                    gridRowEnd: cellData?.rowSpan ? `span ${cellData.rowSpan}` : undefined,
+                    gridColumnEnd: cellData?.colSpan ? `span ${cellData.colSpan}` : undefined,
+                  }}
+                >
                   <Cell
                     coord={coord}
-                    data={data[coord]}
+                    data={cellData}
                     isActive={selectedCell === coord}
                     isInRange={selectionRange.includes(coord)}
                     isEditing={editingCell === coord}

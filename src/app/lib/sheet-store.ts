@@ -106,6 +106,58 @@ export function useSheetStore(rows: number, cols: number) {
     pushToHistory(finalWb);
   }, [activeSheetId, workbook, recalculateAll, pushToHistory]);
 
+  const mergeSelection = useCallback(() => {
+    if (selectionRange.length < 2) return;
+    const startIdx = coordinateToIndex(selectionRange[0])!;
+    const endIdx = coordinateToIndex(selectionRange[selectionRange.length - 1])!;
+    const minRow = Math.min(startIdx.row, endIdx.row);
+    const maxRow = Math.max(startIdx.row, endIdx.row);
+    const minCol = Math.min(startIdx.col, endIdx.col);
+    const maxCol = Math.max(startIdx.col, endIdx.col);
+
+    const primaryCoord = indexToCoordinate(minRow, minCol);
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    const newData = { ...sheet.data };
+
+    const rowSpan = maxRow - minRow + 1;
+    const colSpan = maxCol - minCol + 1;
+
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        const coord = indexToCoordinate(r, c);
+        if (coord === primaryCoord) {
+          newData[coord] = { ...(newData[coord] || { value: '', formula: '' }), rowSpan, colSpan, hiddenByMerge: undefined };
+        } else {
+          newData[coord] = { ...(newData[coord] || { value: '', formula: '' }), hiddenByMerge: primaryCoord, value: '', formula: '' };
+        }
+      }
+    }
+
+    newWb[activeSheetId] = { ...sheet, data: newData };
+    pushToHistory(recalculateAll(newWb));
+  }, [selectionRange, activeSheetId, workbook, recalculateAll, pushToHistory]);
+
+  const unmergeSelection = useCallback(() => {
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    const newData = { ...sheet.data };
+    let changed = false;
+
+    selectionRange.forEach(coord => {
+      const cell = newData[coord];
+      if (cell?.rowSpan || cell?.colSpan || cell?.hiddenByMerge) {
+        newData[coord] = { ...cell, rowSpan: undefined, colSpan: undefined, hiddenByMerge: undefined };
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      newWb[activeSheetId] = { ...sheet, data: newData };
+      pushToHistory(recalculateAll(newWb));
+    }
+  }, [selectionRange, activeSheetId, workbook, recalculateAll, pushToHistory]);
+
   const insertRow = useCallback((afterRowIndex: number) => {
     const newWb = { ...workbook };
     const sheet = newWb[activeSheetId];
@@ -250,15 +302,20 @@ export function useSheetStore(rows: number, cols: number) {
 
   const handleMouseDown = (coord: string, shiftKey: boolean = false) => {
     if (editingCell === coord) return;
+    
+    // Auto-expand selection to include the primary cell if clicking a hidden cell
+    const cell = data[coord];
+    const effectiveCoord = cell?.hiddenByMerge || coord;
+
     if (shiftKey && selectionAnchor) {
-      setSelectionFocus(coord);
+      setSelectionFocus(effectiveCoord);
     } else {
-      if (selectionAnchor === coord) {
-        setEditingCell(coord);
+      if (selectionAnchor === effectiveCoord) {
+        setEditingCell(effectiveCoord);
         setEditingValue(null);
       } else {
-        setSelectionAnchor(coord);
-        setSelectionFocus(coord);
+        setSelectionAnchor(effectiveCoord);
+        setSelectionFocus(effectiveCoord);
         setEditingCell(null);
       }
     }
@@ -266,7 +323,10 @@ export function useSheetStore(rows: number, cols: number) {
   };
 
   const handleMouseEnter = (coord: string) => {
-    if (isDragging && !editingCell) setSelectionFocus(coord);
+    if (isDragging && !editingCell) {
+      const cell = data[coord];
+      setSelectionFocus(cell?.hiddenByMerge || coord);
+    }
   };
 
   const handleMouseUp = useCallback(() => setIsDragging(false), []);
@@ -335,6 +395,8 @@ export function useSheetStore(rows: number, cols: number) {
     editingValue,
     setEditingValue,
     updateCell,
+    mergeSelection,
+    unmergeSelection,
     insertRow,
     deleteRow,
     insertCol,

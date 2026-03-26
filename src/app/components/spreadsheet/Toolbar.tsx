@@ -34,7 +34,9 @@ import {
   Calendar,
   CheckSquare,
   ListFilter,
-  LetterText
+  LetterText,
+  Combine,
+  Split
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -76,6 +78,8 @@ interface ToolbarProps {
   onInsertCol: () => void;
   onDeleteCol: () => void;
   onSort: (dir: 'asc' | 'desc') => void;
+  onMerge: () => void;
+  onUnmerge: () => void;
   onImportCSV: (file: File) => void;
   onExportCSV: () => void;
   onExportJSON: () => void;
@@ -126,6 +130,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onInsertCol,
   onDeleteCol,
   onSort,
+  onMerge,
+  onUnmerge,
   onImportCSV,
   onExportCSV,
   onExportJSON,
@@ -185,6 +191,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             <DropdownMenuItem onClick={onClear}><Eraser className="h-4 w-4 mr-2" />Clear Selection</DropdownMenuItem>
             <DropdownMenuItem onClick={onDeleteRow}><Rows className="h-4 w-4 mr-2" />Delete Selected Row</DropdownMenuItem>
             <DropdownMenuItem onClick={onDeleteCol}><Columns className="h-4 w-4 mr-2" />Delete Selected Col</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onMerge}><Combine className="h-4 w-4 mr-2" />Merge Selection</DropdownMenuItem>
+            <DropdownMenuItem onClick={onUnmerge}><Split className="h-4 w-4 mr-2" />Unmerge Selection</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -307,6 +316,23 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAlign('left')}><AlignLeft className="h-4 w-4" /></Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAlign('center')}><AlignCenter className="h-4 w-4" /></Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAlign('right')}><AlignRight className="h-4 w-4" /></Button>
+          </div>
+
+          <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
+
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onMerge}><Combine className="h-4 w-4" /></Button>
+              </TooltipTrigger>
+              <TooltipContent>Merge Cells</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onUnmerge}><Split className="h-4 w-4" /></Button>
+              </TooltipTrigger>
+              <TooltipContent>Unmerge Cells</TooltipContent>
+            </Tooltip>
           </div>
 
           <div className="flex-1" />

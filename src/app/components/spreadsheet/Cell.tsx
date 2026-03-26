@@ -133,7 +133,7 @@ export const Cell: React.FC<CellProps> = ({
       aria-readonly={!isEditing}
       aria-label={`Cell ${coord}, value: ${displayValue}`}
       className={cn(
-        "relative h-8 border-r border-b border-border min-w-[120px] flex items-center px-2 text-sm overflow-hidden select-none cursor-cell transition-colors",
+        "relative h-full border-r border-b border-border min-w-[120px] flex items-center px-2 text-sm overflow-hidden select-none cursor-cell transition-colors",
         isInRange && "bg-primary/10",
         isActive && "ring-2 ring-primary ring-inset z-10 bg-primary/5",
         isEditing && data?.type !== 'checkbox' && "shadow-lg z-20 bg-white",
