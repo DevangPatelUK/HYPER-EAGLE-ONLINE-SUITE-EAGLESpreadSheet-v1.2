@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { SpreadsheetData, evaluateFormula, indexToCoordinate } from './formula-engine';
 
 export function useSheetStore(initialData: SpreadsheetData = {}) {
@@ -13,22 +13,41 @@ export function useSheetStore(initialData: SpreadsheetData = {}) {
     setData((prev) => {
       const newData = { ...prev };
       const current = newData[coord] || { value: '', formula: '' };
-      newData[coord] = { ...current, ...updates };
+      
+      // Determine what the new formula and value should be
+      let finalFormula = updates.formula !== undefined ? updates.formula : current.formula;
+      let finalValue = updates.value !== undefined ? updates.value : current.value;
 
-      // Re-evaluate all formulas (simple dependency management for a mini system)
-      Object.keys(newData).forEach((key) => {
-        if (newData[key].formula.startsWith('=')) {
-          newData[key].value = evaluateFormula(newData[key].formula, newData);
+      // Update the target cell
+      newData[coord] = { 
+        ...current, 
+        ...updates,
+        formula: finalFormula,
+        value: finalValue
+      };
+
+      // Re-evaluate all formulas to ensure dependencies are updated
+      // We do this in one pass to minimize state transitions
+      const updatedData: SpreadsheetData = { ...newData };
+      Object.keys(updatedData).forEach((key) => {
+        const cell = updatedData[key];
+        if (cell.formula.startsWith('=')) {
+          updatedData[key] = {
+            ...cell,
+            value: evaluateFormula(cell.formula, updatedData)
+          };
         }
       });
 
-      return newData;
+      return updatedData;
     });
   }, []);
 
   const handleCellSelect = (coord: string) => {
     setSelectedCell(coord);
-    setEditingCell(null);
+    if (editingCell !== coord) {
+      setEditingCell(null);
+    }
   };
 
   const handleCellDoubleClick = (coord: string) => {
@@ -75,6 +94,12 @@ export function useSheetStore(initialData: SpreadsheetData = {}) {
       case 'Backspace':
       case 'Delete':
         updateCell(selectedCell, { value: '', formula: '' });
+        break;
+      default:
+        // Start typing directly to enter edit mode (standard spreadsheet behavior)
+        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          setEditingCell(selectedCell);
+        }
         break;
     }
   };
