@@ -1,16 +1,11 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { CellData, formatCellValue, evaluateConditionalFormatting, validateValue } from '@/app/lib/formula-engine';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Lock } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from '@/hooks/use-toast';
 import { FormulaAutocomplete } from './FormulaAutocomplete';
 
@@ -26,10 +21,9 @@ interface CellProps {
   onDoubleClick: (coord: string) => void;
   onUpdate: (coord: string, value: string) => void;
   onFinishEdit: (nextKey?: string) => void;
-  isProtected?: boolean;
 }
 
-export const Cell: React.FC<CellProps> = ({
+export const Cell = memo(({
   coord,
   data,
   isActive,
@@ -41,234 +35,79 @@ export const Cell: React.FC<CellProps> = ({
   onDoubleClick,
   onUpdate,
   onFinishEdit,
-  isProtected,
-}) => {
+}: CellProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [localValue, setLocalValue] = useState(data?.formula || data?.value || '');
+  const [localValue, setLocalValue] = useState('');
   const [showAutocomplete, setShowAutocomplete] = useState(false);
-
-  const isActuallyLocked = data?.isLocked || isProtected;
 
   useEffect(() => {
     if (!isEditing) {
       setLocalValue(data?.formula || data?.value || '');
-      setShowAutocomplete(false);
-    } else {
-      if (initialValue !== null && initialValue !== undefined) {
-        setLocalValue(initialValue);
-      } else {
-        setLocalValue(data?.formula || data?.value || '');
-      }
+    } else if (initialValue !== null) {
+      setLocalValue(initialValue);
     }
   }, [data?.formula, data?.value, isEditing, initialValue]);
 
   useEffect(() => {
-    if (isEditing && data?.type !== 'checkbox' && data?.type !== 'select') {
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-          if (initialValue === null || initialValue === undefined) {
-            inputRef.current.select();
-          }
-        }
-      }, 0);
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      if (initialValue === null) inputRef.current.select();
     }
-  }, [isEditing, initialValue, data?.type]);
+  }, [isEditing, initialValue]);
 
   const handleBlur = () => {
-    // Small timeout to allow autocomplete selection
-    setTimeout(() => {
-      if (isEditing) {
-        const validation = validateValue(localValue, data?.validation);
-        if (!validation.valid) {
-          toast({ title: 'Invalid Input', description: validation.message, variant: 'destructive' });
-          setLocalValue(data?.formula || data?.value || '');
-        } else {
-          onUpdate(coord, localValue);
-        }
-        onFinishEdit();
-      }
-    }, 150);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === 'Tab') {
-      // If autocomplete is visible, its own listener handles selection
-      // but we need to prevent this handler from closing the editor too early
-      if (showAutocomplete) return;
-
+    if (isEditing) {
       const validation = validateValue(localValue, data?.validation);
-      if (!validation.valid) {
-        toast({ title: 'Invalid Input', description: validation.message, variant: 'destructive' });
-        e.preventDefault();
-        return;
-      }
-      onUpdate(coord, localValue);
-      onFinishEdit(e.key);
-      e.preventDefault();
-    } else if (e.key === 'Escape') {
-      setLocalValue(data?.formula || data?.value || '');
+      if (validation.valid) onUpdate(coord, localValue);
+      else toast({ title: 'Invalid Input', description: validation.message, variant: 'destructive' });
       onFinishEdit();
-      e.preventDefault();
     }
-  };
-
-  const handleAutocompleteSelect = (formula: string) => {
-    const lastSpecialChar = localValue.split(/[(),+\-*/]/).pop()?.length || 0;
-    const prefix = localValue.slice(0, localValue.length - lastSpecialChar);
-    const newValue = `${prefix}${formula}(`;
-    setLocalValue(newValue);
-    setShowAutocomplete(false);
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    onMouseDown(coord, e.shiftKey);
-  };
-
-  const handleDoubleClickInternal = () => {
-    if (isActuallyLocked) {
-      toast({ title: 'Cell Protected', description: 'This cell is locked for editing.', variant: 'destructive' });
-      return;
-    }
-    onDoubleClick(coord);
-  };
-
-  const handleCheckboxToggle = (checked: boolean) => {
-    if (isActuallyLocked) {
-      toast({ title: 'Cell Protected', description: 'This cell is locked for editing.', variant: 'destructive' });
-      return;
-    }
-    onUpdate(coord, checked ? 'TRUE' : 'FALSE');
-  };
-
-  const displayValue = formatCellValue(data?.value || '', data?.format);
-  const conditionalStyle = data ? evaluateConditionalFormatting(data) : {};
-
-  const renderEditor = () => {
-    if (data?.type === 'select') {
-      return (
-        <select
-          className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary text-sm"
-          value={localValue}
-          onChange={(e) => {
-            onUpdate(coord, e.target.value);
-            onFinishEdit();
-          }}
-          onBlur={handleBlur}
-          autoFocus
-        >
-          <option value="">Select...</option>
-          {data.options?.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      );
-    }
-
-    return (
-      <div className="relative w-full h-full">
-        <input
-          ref={inputRef}
-          type={data?.type === 'date' ? 'date' : data?.type === 'number' ? 'number' : 'text'}
-          aria-label={`Editing cell ${coord}`}
-          className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary"
-          value={localValue}
-          onChange={(e) => {
-            setLocalValue(e.target.value);
-            setShowAutocomplete(e.target.value.startsWith('='));
-          }}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-        />
-        <FormulaAutocomplete 
-          inputValue={localValue} 
-          isOpen={showAutocomplete} 
-          onSelect={handleAutocompleteSelect} 
-          onClose={() => setShowAutocomplete(false)}
-        />
-      </div>
-    );
   };
 
   const cellContent = (
     <div
-      role="gridcell"
-      aria-selected={isActive || isInRange}
-      aria-readonly={isActuallyLocked}
-      aria-label={`Cell ${coord}, value: ${displayValue}${data?.comment ? `, comment: ${data.comment}` : ''}${isActuallyLocked ? ', locked' : ''}`}
       className={cn(
-        "relative h-full border-r border-b border-border min-w-[120px] flex items-center px-2 text-sm overflow-hidden select-none cursor-cell transition-colors",
-        isInRange && "bg-primary/10",
-        isActive && "ring-2 ring-primary ring-inset z-10 bg-primary/5",
-        isEditing && data?.type !== 'checkbox' && "shadow-lg z-20 bg-white",
-        (data?.bold || conditionalStyle.bold) && "font-bold",
-        data?.italic && "italic",
-        data?.underline && "underline underline-offset-2",
-        data?.strikethrough && "line-through",
-        data?.align === 'center' && "justify-center",
-        data?.align === 'right' && "justify-end",
-        data?.align === 'left' && "justify-start",
-        isActuallyLocked && "bg-muted/30 cursor-not-allowed"
+        "relative h-full border-r border-b border-border min-w-[120px] flex items-center px-2 text-xs overflow-hidden select-none cursor-cell transition-colors",
+        isInRange && "bg-primary/5",
+        isActive && "ring-2 ring-primary ring-inset z-10 bg-primary/10",
+        isEditing && "shadow-lg z-20 bg-white",
+        data?.isLocked && "bg-muted/30 cursor-not-allowed"
       )}
       style={{ 
-        backgroundColor: conditionalStyle.backgroundColor || data?.backgroundColor || undefined,
-        color: conditionalStyle.textColor || data?.textColor || undefined 
+        backgroundColor: evaluateConditionalFormatting(data || { value: '', formula: '' }).backgroundColor || data?.backgroundColor,
+        color: evaluateConditionalFormatting(data || { value: '', formula: '' }).textColor || data?.textColor,
+        fontWeight: data?.bold ? 'bold' : 'normal'
       }}
-      onMouseDown={handleMouseDown}
+      onMouseDown={(e) => onMouseDown(coord, e.shiftKey)}
       onMouseEnter={() => onMouseEnter(coord)}
-      onDoubleClick={handleDoubleClickInternal}
+      onDoubleClick={() => !data?.isLocked && onDoubleClick(coord)}
     >
-      {/* Comment Indicator */}
-      {data?.comment && (
-        <div className="absolute top-0 right-0 w-0 h-0 border-t-[6px] border-t-accent border-l-[6px] border-l-transparent z-10" />
-      )}
+      {data?.comment && <div className="absolute top-0 right-0 border-t-[6px] border-t-accent border-l-[6px] border-l-transparent" />}
+      {data?.isLocked && <div className="absolute bottom-0 right-0 p-0.5 opacity-30"><Lock className="h-2 w-2" /></div>}
 
-      {/* Lock Indicator */}
-      {data?.isLocked && (
-        <div className="absolute bottom-0 right-0 p-0.5 opacity-30">
-          <Lock className="h-2 w-2" />
-        </div>
-      )}
-
-      {isEditing && data?.type !== 'checkbox' ? (
-        renderEditor()
-      ) : data?.type === 'checkbox' ? (
-        <div className="flex w-full justify-center">
-          <Checkbox 
-            checked={data?.value?.toUpperCase() === 'TRUE'} 
-            onCheckedChange={handleCheckboxToggle}
-            className="h-4 w-4"
-            disabled={isActuallyLocked}
+      {isEditing ? (
+        <div className="w-full h-full relative">
+          <input
+            ref={inputRef}
+            className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white"
+            value={localValue}
+            onChange={(e) => { setLocalValue(e.target.value); setShowAutocomplete(e.target.value.startsWith('=')); }}
+            onBlur={handleBlur}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') handleBlur(); if (e.key === 'Escape') onFinishEdit(); }}
           />
+          <FormulaAutocomplete inputValue={localValue} isOpen={showAutocomplete} onSelect={(f) => { setLocalValue(`=${f}(`); setShowAutocomplete(false); }} onClose={() => setShowAutocomplete(false)} />
         </div>
       ) : (
-        <span className="truncate pointer-events-none">
-          {displayValue}
-        </span>
+        <span className="truncate">{formatCellValue(data?.value || '', data?.format)}</span>
       )}
     </div>
   );
 
-  if (data?.comment) {
-    return (
-      <TooltipProvider delayDuration={200}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            {cellContent}
-          </TooltipTrigger>
-          <TooltipContent className="bg-popover text-popover-foreground border border-border shadow-md p-2 text-xs max-w-[200px] break-words">
-            <p className="font-semibold mb-1 text-[10px] text-muted-foreground uppercase tracking-wider">Note</p>
-            {data.comment}
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    );
-  }
+  return data?.comment ? (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip><TooltipTrigger asChild>{cellContent}</TooltipTrigger><TooltipContent>{data.comment}</TooltipContent></Tooltip>
+    </TooltipProvider>
+  ) : cellContent;
+});
 
-  return cellContent;
-};
+Cell.displayName = 'Cell';

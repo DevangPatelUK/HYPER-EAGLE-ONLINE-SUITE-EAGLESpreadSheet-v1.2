@@ -12,10 +12,10 @@ import { useSheetStore } from './lib/sheet-store';
 import { evaluateFormula, coordinateToIndex, PrintSettings } from './lib/formula-engine';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
-import { Plus, X, ChevronRight, LogIn, UserCircle, LogOut, Wifi, WifiOff, Save } from 'lucide-react';
+import { Plus, X, ChevronRight, LogIn, UserCircle, Wifi, WifiOff, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useUser, useFirestore, useAuth } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { doc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -33,8 +33,8 @@ export default function SpreadsheetPage() {
   const cols = 26;
   const { user } = useUser();
   const db = useFirestore();
-  const auth = useAuth();
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isRemoteUpdate = useRef(false);
   
   const {
     workbook,
@@ -76,6 +76,7 @@ export default function SpreadsheetPage() {
     canRedo,
     selectRow,
     selectCol,
+    isDirty,
   } = useSheetStore(rows, cols);
 
   const [aiOpen, setAiOpen] = useState(false);
@@ -88,18 +89,11 @@ export default function SpreadsheetPage() {
   const activeSheet = workbook[activeSheetId];
   const printSettings = activeSheet?.printSettings || DEFAULT_PRINT_SETTINGS;
 
-  // Connection Status Monitoring
   useEffect(() => {
     if (typeof window === 'undefined') return;
     setIsOnline(navigator.onLine);
-    const handleOnline = () => {
-      setIsOnline(true);
-      toast({ title: 'Online', description: 'Cloud sync restored.' });
-    };
-    const handleOffline = () => {
-      setIsOnline(false);
-      toast({ title: 'Offline', description: 'Changes saved locally.', variant: 'destructive' });
-    };
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     return () => {
@@ -108,7 +102,6 @@ export default function SpreadsheetPage() {
     };
   }, []);
 
-  // Sync from Cloud
   useEffect(() => {
     if (!user || !db) return;
     const userDocRef = doc(db, 'workbooks', user.uid);
@@ -116,69 +109,61 @@ export default function SpreadsheetPage() {
       if (snapshot.exists()) {
         const cloudData = snapshot.data();
         if (cloudData.workbookData) {
+          isRemoteUpdate.current = true;
           setWorkbook(cloudData.workbookData);
           if (cloudData.updatedAt) {
             setLastSaved(cloudData.updatedAt.toDate());
           }
+          setTimeout(() => { isRemoteUpdate.current = false; }, 100);
         }
       }
     }, async (err) => {
-      const permissionError = new FirestorePermissionError({ path: userDocRef.path, operation: 'get' });
-      errorEmitter.emit('permission-error', permissionError);
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: userDocRef.path, operation: 'get' }));
     });
     return () => unsubscribe();
   }, [user, db, setWorkbook]);
 
   const handleSave = useCallback(() => {
-    if (!user || !db) return;
+    if (!user || !db || isRemoteUpdate.current) return;
     
     setIsSyncing(true);
     const userDocRef = doc(db, 'workbooks', user.uid);
     
     setDoc(userDocRef, {
       userId: user.uid,
-      name: workbook[activeSheetId]?.name || 'My Workbook',
+      name: workbook[activeSheetId]?.name || 'APEXELX Workbook',
       workbookData: workbook,
       updatedAt: serverTimestamp(),
     }, { merge: true })
     .then(() => {
       setLastSaved(new Date());
+      isDirty.current = false;
     })
     .catch(async (err) => {
-      const permissionError = new FirestorePermissionError({ path: userDocRef.path, operation: 'update', requestResourceData: workbook });
-      errorEmitter.emit('permission-error', permissionError);
+      errorEmitter.emit('permission-error', new FirestorePermissionError({ path: userDocRef.path, operation: 'write', requestResourceData: workbook }));
     })
     .finally(() => setIsSyncing(false));
-  }, [user, db, workbook, activeSheetId]);
+  }, [user, db, workbook, activeSheetId, isDirty]);
 
-  // Autosave Effect
   useEffect(() => {
-    if (!user || !db) return;
+    if (!user || !db || !isDirty.current || isRemoteUpdate.current) return;
 
-    if (autoSaveTimerRef.current) {
-      clearTimeout(autoSaveTimerRef.current);
-    }
-
-    autoSaveTimerRef.current = setTimeout(() => {
-      handleSave();
-    }, 3000);
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(handleSave, 3000);
 
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
-  }, [workbook, user, db, handleSave]);
+  }, [workbook, user, db, handleSave, isDirty]);
 
   const handleSignIn = () => {
-    toast({
-      title: "Coming Soon",
-      description: "Cloud authentication for APEXELX is currently being provisioned.",
-    });
+    toast({ title: "Coming Soon", description: "Cloud authentication for APEXELX is being provisioned." });
   };
 
   const handleUpdate = (coord: string, val: string) => {
     const cell = data[coord];
-    if (cell?.isLocked || workbook[activeSheetId]?.isProtected) {
-      toast({ title: 'Cell Protected', description: 'This cell is locked.', variant: 'destructive' });
+    if (cell?.isLocked || activeSheet?.isProtected) {
+      toast({ title: 'Cell Protected', description: 'This cell is locked for the FEDERAL APEX SHOP SUITE.', variant: 'destructive' });
       return;
     }
 
@@ -189,34 +174,6 @@ export default function SpreadsheetPage() {
     }
   };
 
-  const handleAddComment = () => {
-    if (!selectedCell) return;
-    const currentComment = data[selectedCell]?.comment || '';
-    const newComment = window.prompt('Enter comment/note:', currentComment);
-    if (newComment !== null) {
-      updateCell(selectedCell, { comment: newComment || undefined });
-    }
-  };
-
-  const handleHideRows = useCallback(() => {
-    if (selectionRange.length === 0) return;
-    const indices = Array.from(new Set(selectionRange.map(c => coordinateToIndex(c)!.row)));
-    hideRows(indices, true);
-  }, [selectionRange, hideRows]);
-
-  const handleHideCols = useCallback(() => {
-    if (selectionRange.length === 0) return;
-    const indices = Array.from(new Set(selectionRange.map(c => coordinateToIndex(c)!.col)));
-    hideCols(indices, true);
-  }, [selectionRange, hideCols]);
-
-  const handleUnhideAll = useCallback(() => {
-    const rowCount = Array.from({ length: rows }).map((_, i) => i);
-    const colCount = Array.from({ length: cols }).map((_, i) => i);
-    hideRows(rowCount, false);
-    hideCols(colCount, false);
-  }, [rows, cols, hideRows, hideCols]);
-
   const handleToggleProtectSheet = () => {
     const newWb = { ...workbook };
     const sheet = newWb[activeSheetId];
@@ -226,28 +183,12 @@ export default function SpreadsheetPage() {
     toast({ title: sheet.isProtected ? 'Protection Removed' : 'Sheet Protected' });
   };
 
-  const handleUpdatePrintSettings = (settings: PrintSettings) => {
-    const newWb = { ...workbook };
-    const sheet = newWb[activeSheetId];
-    if (!sheet) return;
-    newWb[activeSheetId] = { ...sheet, printSettings: settings };
-    setWorkbook(newWb);
-  };
-
-  const handlePrint = () => {
-    setPrintOpen(false);
-    setTimeout(() => {
-      window.print();
-    }, 500);
-  };
-
   return (
     <div className={cn(
       "flex flex-col h-screen overflow-hidden bg-background outline-none print:h-auto print:overflow-visible",
       printSettings.orientation === 'landscape' && "print:landscape"
     )} onKeyDown={handleKeyDown} tabIndex={0} role="application">
       
-      {/* Print Header */}
       {printSettings.headerText && (
         <div className="hidden print:flex w-full justify-center py-4 border-b mb-4 text-sm font-semibold uppercase tracking-widest">
           {printSettings.headerText}
@@ -258,7 +199,7 @@ export default function SpreadsheetPage() {
         <div className="bg-primary px-4 py-1 flex items-center justify-between text-white text-[10px] font-bold uppercase tracking-tighter">
           <div className="flex items-center gap-2">
             <UserCircle className="h-3 w-3" />
-            {user ? `Signed in as ${user.displayName || user.email}` : 'FEDERAL APEX GUEST MODE'}
+            {user ? `Signed in as ${user.displayName || user.email}` : 'FEDERAL APEX SHOP SUITE - GUEST MODE'}
           </div>
           <div className="flex items-center gap-4">
             <div className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-white/20 bg-white/10", !isOnline && "bg-destructive/20 border-destructive/40")}>
@@ -293,9 +234,9 @@ export default function SpreadsheetPage() {
           onDeleteRow={() => selectedCell && deleteRow(coordinateToIndex(selectedCell)!.row)}
           onInsertCol={() => selectedCell && insertCol(coordinateToIndex(selectedCell)!.col)}
           onDeleteCol={() => selectedCell && deleteCol(coordinateToIndex(selectedCell)!.col)}
-          onHideRows={handleHideRows}
-          onHideCols={handleHideCols}
-          onUnhideAll={handleUnhideAll}
+          onHideRows={() => selectionRange.length > 0 && hideRows(Array.from(new Set(selectionRange.map(c => coordinateToIndex(c)!.row))), true)}
+          onHideCols={() => selectionRange.length > 0 && hideCols(Array.from(new Set(selectionRange.map(c => coordinateToIndex(c)!.col))), true)}
+          onUnhideAll={() => { hideRows(Array.from({ length: rows }, (_, i) => i), false); hideCols(Array.from({ length: cols }, (_, i) => i), false); }}
           onFreezeRows={(n) => setFrozenState(n, undefined)}
           onFreezeCols={(n) => setFrozenState(undefined, n)}
           onSort={(dir) => sortRange(dir)}
@@ -303,12 +244,12 @@ export default function SpreadsheetPage() {
           onClearFilters={clearFilters}
           onMerge={mergeSelection}
           onUnmerge={unmergeSelection}
-          onAddComment={handleAddComment}
+          onAddComment={() => { if (selectedCell) { const c = window.prompt('Note:', data[selectedCell]?.comment || ''); if (c !== null) updateCell(selectedCell, { comment: c || undefined }); } }}
           onAddChart={addChart}
           onPrint={() => setPrintOpen(true)}
-          onValidation={(validation) => selectionRange.forEach(c => updateCell(c, { validation }))}
-          onConditionalFormat={(rule) => selectionRange.forEach(c => updateCell(c, { conditionalFormats: rule ? [rule] : [] }))}
-          onLock={(lock) => selectionRange.forEach(c => updateCell(c, { isLocked: lock }))}
+          onValidation={(v) => selectionRange.forEach(c => updateCell(c, { validation: v }))}
+          onConditionalFormat={(r) => selectionRange.forEach(c => updateCell(c, { conditionalFormats: r ? [r] : [] }))}
+          onLock={(l) => selectionRange.forEach(c => updateCell(c, { isLocked: l }))}
           onToggleProtectSheet={handleToggleProtectSheet}
           isSheetProtected={!!activeSheet?.isProtected}
           onImportCSV={() => {}} onExportCSV={() => {}} onExportJSON={() => {}}
@@ -319,19 +260,13 @@ export default function SpreadsheetPage() {
 
       <main className={cn(
         "flex-1 overflow-hidden flex flex-col relative border-t border-border print:border-none print:overflow-visible print:h-auto",
-        printSettings.margins === 'narrow' && "print:p-4",
-        printSettings.margins === 'standard' && "print:p-8",
-        printSettings.margins === 'wide' && "print:p-12",
+        printSettings.margins === 'narrow' ? "print:p-4" : printSettings.margins === 'wide' ? "print:p-12" : "print:p-8",
       )}>
         {activeSheet && (
           <Grid 
             rows={rows} 
             cols={cols} 
-            activeSheet={{
-              ...activeSheet,
-              frozenRows: 0, 
-              frozenCols: 0,
-            }}
+            activeSheet={activeSheet}
             selectedCell={selectedCell} 
             selectionRange={selectionRange} 
             editingCell={editingCell} 
@@ -348,18 +283,11 @@ export default function SpreadsheetPage() {
         )}
         <div className="print:hidden">
           {activeSheet?.charts?.map((chart) => (
-            <ChartOverlay 
-              key={chart.id} 
-              chart={chart} 
-              workbook={workbook} 
-              activeSheetId={activeSheetId} 
-              onRemove={removeChart}
-            />
+            <ChartOverlay key={chart.id} chart={chart} workbook={workbook} activeSheetId={activeSheetId} onRemove={removeChart} />
           ))}
         </div>
       </main>
 
-      {/* Print Footer */}
       {printSettings.footerText && (
         <div className="hidden print:flex w-full justify-center py-4 border-t mt-4 text-xs text-muted-foreground">
           {printSettings.footerText}
@@ -378,32 +306,24 @@ export default function SpreadsheetPage() {
       <Toaster />
       <footer className="h-6 bg-primary text-[10px] text-white flex items-center px-4 justify-between uppercase tracking-widest font-bold print:hidden">
         <div className="flex items-center gap-2">
-          <span>APEXELX v2.0</span>
+          <span>APEXELX v2.1</span>
           <ChevronRight className="h-3 w-3" />
           <span>{activeSheet?.name}</span>
           {isSyncing ? (
-            <span className="flex items-center gap-1.5 ml-2">
-              <Save className="h-3 w-3 animate-pulse" />
-              Saving...
-            </span>
+            <span className="flex items-center gap-1.5 ml-2"><Save className="h-3 w-3 animate-pulse" />Saving...</span>
           ) : lastSaved ? (
-            <span className="opacity-70 ml-2">
-              All changes saved at {format(lastSaved, 'HH:mm:ss')}
-            </span>
+            <span className="opacity-70 ml-2">Saved at {format(lastSaved, 'HH:mm:ss')}</span>
           ) : null}
-          {!isOnline && <span className="text-destructive-foreground bg-destructive/80 px-1.5 py-0.5 rounded ml-2">RECOVERY MODE (OFFLINE)</span>}
         </div>
-        <span>{selectionRange.length > 1 ? `${selectionRange.length} cells selected` : 'Ready'}</span>
+        <span>{selectionRange.length > 1 ? `${selectionRange.length} cells selected` : 'APEXELX READY'}</span>
       </footer>
 
       <AIAssistant open={aiOpen} onOpenChange={setAiOpen} selectedRange={selectedCell} selectedRangeData={[]} onApplyFormula={(f) => selectedCell && handleUpdate(selectedCell, f)} />
       <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
       <PrintSettingsDialog 
-        open={printOpen} 
-        onOpenChange={setPrintOpen} 
-        settings={printSettings} 
-        onUpdateSettings={handleUpdatePrintSettings}
-        onPrint={handlePrint}
+        open={printOpen} onOpenChange={setPrintOpen} settings={printSettings} 
+        onUpdateSettings={(s) => { const nwb = { ...workbook }; nwb[activeSheetId].printSettings = s; setWorkbook(nwb); }}
+        onPrint={() => { setPrintOpen(false); setTimeout(() => window.print(), 500); }}
       />
     </div>
   );

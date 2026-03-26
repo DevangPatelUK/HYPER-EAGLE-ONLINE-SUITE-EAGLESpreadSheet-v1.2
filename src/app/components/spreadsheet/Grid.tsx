@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Cell } from './Cell';
-import { indexToCoordinate, coordinateToIndex, Sheet } from '@/app/lib/formula-engine';
+import { indexToCoordinate, Sheet } from '@/app/lib/formula-engine';
 import { cn } from '@/lib/utils';
 
 interface GridProps {
@@ -33,154 +33,87 @@ export const Grid: React.FC<GridProps> = ({
   editingValue,
   onMouseDown,
   onMouseEnter,
-  onMouseUp,
   onDoubleClick,
   onUpdate,
   onFinishEdit,
   onSelectRow,
   onSelectCol,
 }) => {
-  const data = activeSheet.data;
-  const hiddenRows = activeSheet.hiddenRows || {};
-  const filteredRows = activeSheet.filteredRows || {};
-  const hiddenCols = activeSheet.hiddenCols || {};
-  const rowHeights = activeSheet.rowHeights || {};
-  const colWidths = activeSheet.colWidths || {};
-  const frozenRows = activeSheet.frozenRows || 0;
-  const frozenCols = activeSheet.frozenCols || 0;
+  const { hiddenRows = {}, filteredRows = {}, hiddenCols = {}, rowHeights = {}, colWidths = {}, frozenRows = 0, frozenCols = 0 } = activeSheet;
 
-  const getColHeader = (col: number) => {
-    let header = '';
-    let c = col + 1;
-    while (c > 0) {
-      let remainder = (c - 1) % 26;
-      header = String.fromCharCode(65 + remainder) + header;
-      c = Math.floor((c - 1) / 26);
+  const colOffsets = useMemo(() => {
+    const offsets = [40];
+    for (let i = 0; i < cols; i++) {
+      offsets.push(offsets[i] + (hiddenCols[i] ? 0 : (colWidths[i] || 120)));
     }
-    return header;
-  };
+    return offsets;
+  }, [cols, hiddenCols, colWidths]);
 
-  const colTemplate = `40px ${Array.from({ length: cols })
-    .map((_, i) => hiddenCols[i] ? '0px' : `${colWidths[i] || 120}px`)
-    .join(' ')}`;
+  const rowOffsets = useMemo(() => {
+    const offsets = [32];
+    for (let i = 0; i < rows; i++) {
+      offsets.push(offsets[i] + (hiddenRows[i] || filteredRows[i] ? 0 : (rowHeights[i] || 32)));
+    }
+    return offsets;
+  }, [rows, hiddenRows, filteredRows, rowHeights]);
+
+  const colTemplate = useMemo(() => 
+    `40px ${Array.from({ length: cols }).map((_, i) => hiddenCols[i] ? '0px' : `${colWidths[i] || 120}px`).join(' ')}`,
+    [cols, hiddenCols, colWidths]
+  );
 
   return (
-    <div 
-      className="flex-1 overflow-auto bg-white select-none relative"
-      role="grid"
-      aria-rowcount={rows + 1}
-      aria-colcount={cols + 1}
-      aria-label="Spreadsheet Grid"
-    >
-      {/* Column Headers */}
-      <div 
-        className="grid sticky top-0 left-0 z-40"
-        style={{ gridTemplateColumns: colTemplate }}
-        role="row"
-      >
-        <div 
-          className="bg-muted h-8 border-r border-b border-border flex items-center justify-center sticky left-0 z-50" 
-          role="columnheader"
-          aria-label="Select All"
-        />
-        {Array.from({ length: cols }).map((_, i) => (
-          <div
-            key={i}
-            onClick={(e) => onSelectCol(i, e.shiftKey)}
-            className={cn(
-              "bg-muted h-8 border-r border-b border-border flex items-center justify-center text-xs font-medium text-muted-foreground cursor-pointer hover:bg-muted-foreground/10 transition-colors overflow-hidden",
-              selectionRange.includes(indexToCoordinate(0, i)) && selectionRange.includes(indexToCoordinate(rows - 1, i)) && "bg-primary/20 text-primary font-bold",
-              hiddenCols[i] && "hidden",
-              i < frozenCols && "sticky left-[40px] z-50"
-            )}
-            style={{ 
-              left: i < frozenCols ? `${40 + (Array.from({ length: i }).reduce((acc, _, idx) => acc + (hiddenCols[idx] ? 0 : (colWidths[idx] || 120)), 0))}px` : undefined 
-            }}
-            role="columnheader"
-            aria-label={`Column ${getColHeader(i)}`}
-          >
-            {getColHeader(i)}
-          </div>
-        ))}
+    <div className="flex-1 overflow-auto bg-white select-none relative" role="grid">
+      <div className="grid sticky top-0 left-0 z-40" style={{ gridTemplateColumns: colTemplate }}>
+        <div className="bg-muted h-8 border-r border-b border-border flex items-center justify-center sticky left-0 z-50" />
+        {Array.from({ length: cols }).map((_, i) => {
+          if (hiddenCols[i]) return null;
+          return (
+            <div
+              key={i}
+              onClick={(e) => onSelectCol(i, e.shiftKey)}
+              className={cn(
+                "bg-muted h-8 border-r border-b border-border flex items-center justify-center text-[10px] font-bold text-muted-foreground cursor-pointer hover:bg-primary/10 transition-colors",
+                i < frozenCols && "sticky left-[40px] z-50"
+              )}
+              style={{ left: i < frozenCols ? `${colOffsets[i]}px` : undefined }}
+            >
+              {String.fromCharCode(65 + (i % 26))}
+            </div>
+          );
+        })}
       </div>
 
-      <div 
-        className="grid relative" 
-        style={{ 
-          gridTemplateColumns: colTemplate,
-        }}
-      >
+      <div className="grid relative" style={{ gridTemplateColumns: colTemplate }}>
         {Array.from({ length: rows }).map((_, r) => {
           if (hiddenRows[r] || filteredRows[r]) return null;
-
-          const rowHeight = rowHeights[r] || 32;
           const isRowFrozen = r < frozenRows;
-          const frozenRowOffset = isRowFrozen ? (Array.from({ length: r }).reduce((acc, _, idx) => acc + (hiddenRows[idx] || filteredRows[idx] ? 0 : (rowHeights[idx] || 32)), 0)) : 0;
-
           return (
             <React.Fragment key={r}>
-              {/* Row Header */}
               <div 
                 onClick={(e) => onSelectRow(r, e.shiftKey)}
-                className={cn(
-                  "bg-muted border-r border-b border-border flex items-center justify-center text-xs font-medium text-muted-foreground sticky left-0 cursor-pointer hover:bg-muted-foreground/10 transition-colors overflow-hidden",
-                  selectionRange.includes(indexToCoordinate(r, 0)) && selectionRange.includes(indexToCoordinate(r, cols - 1)) && "bg-primary/20 text-primary font-bold",
-                  isRowFrozen ? "z-30 sticky top-0" : "z-20"
-                )}
-                style={{ 
-                  gridRowStart: r + 1, 
-                  gridColumnStart: 1,
-                  height: rowHeight,
-                  top: isRowFrozen ? `${32 + frozenRowOffset}px` : undefined
-                }}
-                role="rowheader"
-                aria-label={`Row ${r + 1}`}
+                className={cn("bg-muted border-r border-b border-border flex items-center justify-center text-[10px] font-bold text-muted-foreground sticky left-0 cursor-pointer hover:bg-primary/10", isRowFrozen ? "z-30 sticky top-0" : "z-20")}
+                style={{ gridRowStart: r + 1, height: rowHeights[r] || 32, top: isRowFrozen ? `${rowOffsets[r]}px` : undefined }}
               >
                 {r + 1}
               </div>
-              {/* Cells in Row */}
               {Array.from({ length: cols }).map((_, c) => {
                 if (hiddenCols[c]) return null;
-
-                const isColFrozen = c < frozenCols;
                 const coord = indexToCoordinate(r, c);
-                const cellData = data[coord];
-                
+                const cellData = activeSheet.data[coord];
                 if (cellData?.hiddenByMerge) return null;
-
-                const frozenColOffset = isColFrozen ? (Array.from({ length: c }).reduce((acc, _, idx) => acc + (hiddenCols[idx] ? 0 : (colWidths[idx] || 120)), 0)) : 0;
-
                 return (
                   <div 
                     key={coord} 
-                    role="row"
-                    className={cn(
-                      isRowFrozen && "sticky top-0 z-30",
-                      isColFrozen && "sticky left-[40px] z-30",
-                      isRowFrozen && isColFrozen && "z-40"
-                    )}
-                    style={{ 
-                      gridRowStart: r + 1, 
-                      gridColumnStart: c + 2,
-                      gridRowEnd: cellData?.rowSpan ? `span ${cellData.rowSpan}` : undefined,
-                      gridColumnEnd: cellData?.colSpan ? `span ${cellData.colSpan}` : undefined,
-                      height: cellData?.rowSpan ? undefined : rowHeight,
-                      top: isRowFrozen ? `${32 + frozenRowOffset}px` : undefined,
-                      left: isColFrozen ? `${40 + frozenColOffset}px` : undefined
-                    }}
+                    className={cn(isRowFrozen && "sticky top-0 z-30", c < frozenCols && "sticky left-[40px] z-30")}
+                    style={{ gridRowStart: r + 1, gridColumnStart: c + 2, height: rowHeights[r] || 32, top: isRowFrozen ? `${rowOffsets[r]}px` : undefined, left: c < frozenCols ? `${colOffsets[c]}px` : undefined }}
                   >
                     <Cell
-                      coord={coord}
-                      data={cellData}
-                      isActive={selectedCell === coord}
-                      isInRange={selectionRange.includes(coord)}
-                      isEditing={editingCell === coord}
+                      coord={coord} data={cellData} isActive={selectedCell === coord}
+                      isInRange={selectionRange.includes(coord)} isEditing={editingCell === coord}
                       initialValue={editingCell === coord ? editingValue : null}
-                      onMouseDown={(coord, shift) => onMouseDown(coord, shift)}
-                      onMouseEnter={onMouseEnter}
-                      onDoubleClick={onDoubleClick}
-                      onUpdate={onUpdate}
-                      onFinishEdit={onFinishEdit}
+                      onMouseDown={onMouseDown} onMouseEnter={onMouseEnter}
+                      onDoubleClick={onDoubleClick} onUpdate={onUpdate} onFinishEdit={onFinishEdit}
                     />
                   </div>
                 );
