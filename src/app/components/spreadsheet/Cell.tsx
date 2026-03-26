@@ -7,9 +7,11 @@ import { CellData } from '@/app/lib/formula-engine';
 interface CellProps {
   coord: string;
   data?: CellData;
-  isSelected: boolean;
+  isActive: boolean;
+  isInRange: boolean;
   isEditing: boolean;
-  onSelect: (coord: string) => void;
+  onMouseDown: (coord: string, shiftKey: boolean) => void;
+  onMouseEnter: (coord: string) => void;
   onDoubleClick: (coord: string) => void;
   onUpdate: (coord: string, value: string) => void;
   onFinishEdit: () => void;
@@ -18,9 +20,11 @@ interface CellProps {
 export const Cell: React.FC<CellProps> = ({
   coord,
   data,
-  isSelected,
+  isActive,
+  isInRange,
   isEditing,
-  onSelect,
+  onMouseDown,
+  onMouseEnter,
   onDoubleClick,
   onUpdate,
   onFinishEdit,
@@ -28,14 +32,12 @@ export const Cell: React.FC<CellProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [localValue, setLocalValue] = useState(data?.formula || data?.value || '');
 
-  // Keep local value in sync with external data when not editing
   useEffect(() => {
     if (!isEditing) {
       setLocalValue(data?.formula || data?.value || '');
     }
   }, [data?.formula, data?.value, isEditing]);
 
-  // Focus and select text when editing starts
   useEffect(() => {
     if (isEditing) {
       setTimeout(() => {
@@ -58,7 +60,6 @@ export const Cell: React.FC<CellProps> = ({
     if (e.key === 'Enter' || e.key === 'Tab') {
       onUpdate(coord, localValue);
       onFinishEdit();
-      // We don't preventDefault here so the global handler can pick up the navigation
     } else if (e.key === 'Escape') {
       setLocalValue(data?.formula || data?.value || '');
       onFinishEdit();
@@ -66,23 +67,29 @@ export const Cell: React.FC<CellProps> = ({
     }
   };
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    onMouseDown(coord, e.shiftKey);
+  };
+
   return (
     <div
       className={cn(
         "relative h-8 border-r border-b border-border min-w-[120px] flex items-center px-2 text-sm overflow-hidden select-none cursor-cell transition-colors",
-        isSelected && "cell-selected bg-primary/5",
-        isEditing && "cell-editing shadow-lg",
+        isInRange && "bg-primary/10",
+        isActive && "ring-2 ring-primary ring-inset z-10 bg-primary/5",
+        isEditing && "shadow-lg z-20 bg-white",
         data?.bold && "font-bold",
         data?.align === 'center' && "justify-center",
         data?.align === 'right' && "justify-end"
       )}
-      onClick={() => onSelect(coord)}
+      onMouseDown={handleMouseDown}
+      onMouseEnter={() => onMouseEnter(coord)}
       onDoubleClick={() => onDoubleClick(coord)}
     >
       {isEditing ? (
         <input
           ref={inputRef}
-          className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary z-30"
+          className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary"
           value={localValue}
           onChange={(e) => setLocalValue(e.target.value)}
           onBlur={handleBlur}
@@ -93,6 +100,8 @@ export const Cell: React.FC<CellProps> = ({
           {data?.value || ''}
         </span>
       )}
+      {/* Selection Border logic could be added here for the range corners, 
+          but for now simple highlight is effective */}
     </div>
   );
 };

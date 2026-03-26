@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Toolbar } from './components/spreadsheet/Toolbar';
 import { FormulaBar } from './components/spreadsheet/FormulaBar';
 import { Grid } from './components/spreadsheet/Grid';
 import { AIAssistant } from './components/spreadsheet/AIAssistant';
 import { useSheetStore } from './lib/sheet-store';
-import { evaluateFormula } from './lib/formula-engine';
+import { evaluateFormula, coordinateToIndex } from './lib/formula-engine';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 
@@ -17,20 +17,23 @@ export default function SpreadsheetPage() {
     data,
     setData,
     selectedCell,
-    setSelectedCell,
+    selectionRange,
     editingCell,
     setEditingCell,
     updateCell,
-    handleCellSelect,
+    handleMouseDown,
+    handleMouseEnter,
+    handleMouseUp,
     handleCellDoubleClick,
     handleKeyDown,
     sheetName,
     setSheetName,
-  } = useSheetStore();
+    selectRow,
+    selectCol,
+  } = useSheetStore(rows, cols);
 
   const [aiOpen, setAiOpen] = useState(false);
 
-  // Persistence: Auto-save to localStorage
   useEffect(() => {
     const saved = localStorage.getItem('sheet-flow-current');
     if (saved) {
@@ -67,16 +70,16 @@ export default function SpreadsheetPage() {
   };
 
   const handleFormatBold = () => {
-    if (selectedCell) {
-      const current = data[selectedCell] || { value: '', formula: '' };
-      updateCell(selectedCell, { bold: !current.bold });
-    }
+    selectionRange.forEach(coord => {
+      const current = data[coord] || { value: '', formula: '' };
+      updateCell(coord, { bold: !current.bold });
+    });
   };
 
   const handleAlign = (align: 'left' | 'center' | 'right') => {
-    if (selectedCell) {
-      updateCell(selectedCell, { align });
-    }
+    selectionRange.forEach(coord => {
+      updateCell(coord, { align });
+    });
   };
 
   const handleUpdate = (coord: string, val: string) => {
@@ -95,9 +98,44 @@ export default function SpreadsheetPage() {
     }
   };
 
+  // Prepare range data for AI Assistant
+  const selectedRangeData = useMemo(() => {
+    if (selectionRange.length === 0) return [];
+    
+    const indices = selectionRange.map(c => coordinateToIndex(c)).filter(Boolean) as {row: number, col: number}[];
+    const minRow = Math.min(...indices.map(i => i.row));
+    const maxRow = Math.max(...indices.map(i => i.row));
+    const minCol = Math.min(...indices.map(i => i.col));
+    const maxCol = Math.max(...indices.map(i => i.col));
+
+    const grid: string[][] = [];
+    for (let r = minRow; r <= maxRow; r++) {
+      const rowArr: string[] = [];
+      for (let c = minCol; c <= maxCol; c++) {
+        const matchingIndex = indices.find(i => i.row === r && i.col === c);
+        if (matchingIndex) {
+          const coord = selectionRange.find(src => {
+            const sIdx = coordinateToIndex(src);
+            return sIdx?.row === r && sIdx?.col === c;
+          }) || '';
+          rowArr.push(data[coord]?.value || '');
+        } else {
+          rowArr.push('');
+        }
+      }
+      grid.push(rowArr);
+    }
+    return grid;
+  }, [selectionRange, data]);
+
+  const selectedRangeString = useMemo(() => {
+    if (selectionRange.length <= 1) return selectionRange[0] || null;
+    return `${selectionRange[0]}:${selectionRange[selectionRange.length - 1]}`;
+  }, [selectionRange]);
+
   return (
     <div 
-      className="flex flex-col h-screen overflow-hidden bg-background"
+      className="flex flex-col h-screen overflow-hidden bg-background outline-none"
       onKeyDown={(e) => handleKeyDown(e, rows, cols)}
       tabIndex={0}
     >
@@ -124,28 +162,32 @@ export default function SpreadsheetPage() {
           cols={cols}
           data={data}
           selectedCell={selectedCell}
+          selectionRange={selectionRange}
           editingCell={editingCell}
-          onSelect={handleCellSelect}
+          onMouseDown={handleMouseDown}
+          onMouseEnter={handleMouseEnter}
+          onMouseUp={handleMouseUp}
           onDoubleClick={handleCellDoubleClick}
           onUpdate={handleUpdate}
           onFinishEdit={() => setEditingCell(null)}
+          onSelectRow={selectRow}
+          onSelectCol={selectCol}
         />
       </div>
 
       <AIAssistant
         open={aiOpen}
         onOpenChange={setAiOpen}
-        selectedRange={selectedCell}
-        selectedRangeData={[]} // In a fuller implementation, capture a range. For now, empty or single cell.
+        selectedRange={selectedRangeString}
+        selectedRangeData={selectedRangeData}
         onApplyFormula={handleApplyFormula}
       />
       
       <Toaster />
 
-      {/* Footer Info */}
       <div className="h-6 bg-primary text-[10px] text-white flex items-center px-4 justify-between uppercase tracking-widest font-bold">
         <span>SheetFlow v1.0</span>
-        <span>Ready</span>
+        <span>{selectionRange.length > 1 ? `${selectionRange.length} cells selected` : 'Ready'}</span>
       </div>
     </div>
   );
