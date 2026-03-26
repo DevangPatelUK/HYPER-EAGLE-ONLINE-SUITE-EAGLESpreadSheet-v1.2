@@ -30,7 +30,11 @@ import {
   ArrowDownAZ,
   ArrowUpAZ,
   Copy,
-  Type
+  Type,
+  Calendar,
+  CheckSquare,
+  ListFilter,
+  LetterText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -57,6 +61,7 @@ interface ToolbarProps {
   onUnderline: () => void;
   onAlign: (align: 'left' | 'center' | 'right') => void;
   onFormat: (format: 'number' | 'currency' | 'percent' | 'text') => void;
+  onType: (type: 'text' | 'number' | 'date' | 'checkbox' | 'select', options?: string[]) => void;
   onBgColor: (color: string) => void;
   onTextColor: (color: string) => void;
   onNew: () => void;
@@ -106,6 +111,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onUnderline,
   onAlign,
   onFormat,
+  onType,
   onBgColor,
   onTextColor,
   onNew,
@@ -137,6 +143,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     if (file) {
       onImportCSV(file);
       e.target.value = '';
+    }
+  };
+
+  const promptDropdownOptions = () => {
+    const input = window.prompt("Enter options separated by commas (e.g. Yes,No,Maybe)");
+    if (input) {
+      onType('select', input.split(',').map(s => s.trim()));
     }
   };
 
@@ -200,6 +213,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 {TEXT_COLORS.map(c => (
                   <div key={c.value} onClick={() => onTextColor(c.value)} className="h-6 w-6 rounded cursor-pointer border border-border" style={{ backgroundColor: c.value }} />
                 ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger><LayoutGrid className="h-4 w-4 mr-2" />Cell Type</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-[150px]">
+                <DropdownMenuItem onClick={() => onType('text')}><LetterText className="h-4 w-4 mr-2" />Text</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onType('number')}><Hash className="h-4 w-4 mr-2" />Number</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onType('date')}><Calendar className="h-4 w-4 mr-2" />Date</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onType('checkbox')}><CheckSquare className="h-4 w-4 mr-2" />Checkbox</DropdownMenuItem>
+                <DropdownMenuItem onClick={promptDropdownOptions}><ListFilter className="h-4 w-4 mr-2" />Dropdown List</DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
           </DropdownMenuContent>

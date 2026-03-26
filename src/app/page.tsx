@@ -130,6 +130,7 @@ export default function SpreadsheetPage() {
           onUnderline={() => selectionRange.forEach(c => updateCell(c, { underline: !data[c]?.underline }))}
           onAlign={(align) => selectionRange.forEach(c => updateCell(c, { align }))}
           onFormat={(format) => selectionRange.forEach(c => updateCell(c, { format }))}
+          onType={(type, options) => selectionRange.forEach(c => updateCell(c, { type, options }))}
           onBgColor={(backgroundColor) => selectionRange.forEach(c => updateCell(c, { backgroundColor }))}
           onTextColor={(textColor) => selectionRange.forEach(c => updateCell(c, { textColor }))}
           onNew={addSheet}

@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { CellData, formatCellValue } from '@/app/lib/formula-engine';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface CellProps {
   coord: string;
@@ -47,7 +48,7 @@ export const Cell: React.FC<CellProps> = ({
   }, [data?.formula, data?.value, isEditing, initialValue]);
 
   useEffect(() => {
-    if (isEditing) {
+    if (isEditing && data?.type !== 'checkbox' && data?.type !== 'select') {
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
@@ -57,7 +58,7 @@ export const Cell: React.FC<CellProps> = ({
         }
       }, 0);
     }
-  }, [isEditing, initialValue]);
+  }, [isEditing, initialValue, data?.type]);
 
   const handleBlur = () => {
     if (isEditing) {
@@ -82,7 +83,48 @@ export const Cell: React.FC<CellProps> = ({
     onMouseDown(coord, e.shiftKey);
   };
 
+  const handleCheckboxToggle = (checked: boolean) => {
+    onUpdate(coord, checked ? 'TRUE' : 'FALSE');
+  };
+
   const displayValue = formatCellValue(data?.value || '', data?.format);
+
+  const renderEditor = () => {
+    if (data?.type === 'select') {
+      return (
+        <select
+          className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary text-sm"
+          value={localValue}
+          onChange={(e) => {
+            onUpdate(coord, e.target.value);
+            onFinishEdit();
+          }}
+          onBlur={handleBlur}
+          autoFocus
+        >
+          <option value="">Select...</option>
+          {data.options?.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    return (
+      <input
+        ref={inputRef}
+        type={data?.type === 'date' ? 'date' : data?.type === 'number' ? 'number' : 'text'}
+        aria-label={`Editing cell ${coord}`}
+        className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary"
+        value={localValue}
+        onChange={(e) => setLocalValue(e.target.value)}
+        onBlur={handleBlur}
+        onKeyDown={handleKeyDown}
+      />
+    );
+  };
 
   return (
     <div
@@ -94,7 +136,7 @@ export const Cell: React.FC<CellProps> = ({
         "relative h-8 border-r border-b border-border min-w-[120px] flex items-center px-2 text-sm overflow-hidden select-none cursor-cell transition-colors",
         isInRange && "bg-primary/10",
         isActive && "ring-2 ring-primary ring-inset z-10 bg-primary/5",
-        isEditing && "shadow-lg z-20 bg-white",
+        isEditing && data?.type !== 'checkbox' && "shadow-lg z-20 bg-white",
         data?.bold && "font-bold",
         data?.italic && "italic",
         data?.underline && "underline underline-offset-2",
@@ -111,16 +153,16 @@ export const Cell: React.FC<CellProps> = ({
       onMouseEnter={() => onMouseEnter(coord)}
       onDoubleClick={() => onDoubleClick(coord)}
     >
-      {isEditing ? (
-        <input
-          ref={inputRef}
-          aria-label={`Editing cell ${coord}`}
-          className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary"
-          value={localValue}
-          onChange={(e) => setLocalValue(e.target.value)}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
-        />
+      {isEditing && data?.type !== 'checkbox' ? (
+        renderEditor()
+      ) : data?.type === 'checkbox' ? (
+        <div className="flex w-full justify-center">
+          <Checkbox 
+            checked={data?.value?.toUpperCase() === 'TRUE'} 
+            onCheckedChange={handleCheckboxToggle}
+            className="h-4 w-4"
+          />
+        </div>
       ) : (
         <span className="truncate pointer-events-none">
           {displayValue}

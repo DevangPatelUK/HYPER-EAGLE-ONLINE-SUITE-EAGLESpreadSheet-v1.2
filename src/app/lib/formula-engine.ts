@@ -9,6 +9,8 @@ export type CellData = {
   backgroundColor?: string;
   textColor?: string;
   format?: 'number' | 'currency' | 'percent' | 'text';
+  type?: 'text' | 'number' | 'date' | 'checkbox' | 'select';
+  options?: string[];
 };
 
 export type SpreadsheetData = Record<string, CellData>;
@@ -62,7 +64,13 @@ function parseRange(rangeStr: string): string[] {
 }
 
 export function formatCellValue(value: string, format?: string): string {
-  if (!value || isNaN(parseFloat(value))) return value;
+  if (!value) return '';
+  
+  // Handle Booleans from Checkboxes
+  if (value.toUpperCase() === 'TRUE') return '✓';
+  if (value.toUpperCase() === 'FALSE') return '';
+
+  if (isNaN(parseFloat(value))) return value;
   const num = parseFloat(value);
 
   switch (format) {
@@ -144,6 +152,9 @@ export function evaluateFormula(
       const values = coords.map(c => {
         const val = getCellValue(`${workbook[targetSheetId].name}!${c}`, workbook, currentSheetId, visited);
         if (val.startsWith('#') && val !== '#CIRCULAR!') throw new Error(val);
+        // Handle checkbox values for aggregation
+        if (val.toUpperCase() === 'TRUE') return 1;
+        if (val.toUpperCase() === 'FALSE') return 0;
         return parseFloat(val || '0');
       }).filter(v => !isNaN(v));
 
@@ -178,7 +189,9 @@ export function evaluateFormula(
       const falseVal = args[2];
 
       const processedCondition = condition.replace(/([A-Z0-9_]+!)?[A-Z]+\d+/g, (match) => {
-        const val = getCellValue(match, workbook, currentSheetId, visited);
+        let val = getCellValue(match, workbook, currentSheetId, visited);
+        if (val.toUpperCase() === 'TRUE') return 'true';
+        if (val.toUpperCase() === 'FALSE') return 'false';
         return isNaN(parseFloat(val)) ? `"${val}"` : val;
       });
 
@@ -194,6 +207,8 @@ export function evaluateFormula(
     let processedExpr = expression.replace(/([A-Z0-9_]+!)?[A-Z]+\d+/g, (match) => {
       const val = getCellValue(match, workbook, currentSheetId, visited);
       if (val.startsWith('#') && val !== '#CIRCULAR!') throw new Error(val);
+      if (val.toUpperCase() === 'TRUE') return '1';
+      if (val.toUpperCase() === 'FALSE') return '0';
       const num = parseFloat(val || '0');
       return isNaN(num) ? '0' : num.toString();
     });
