@@ -2,14 +2,14 @@
 
 import React from 'react';
 import { Cell } from './Cell';
-import { indexToCoordinate, coordinateToIndex } from '@/app/lib/formula-engine';
+import { indexToCoordinate, coordinateToIndex, Sheet } from '@/app/lib/formula-engine';
 import { SpreadsheetData } from '@/app/lib/formula-engine';
 import { cn } from '@/lib/utils';
 
 interface GridProps {
   rows: number;
   cols: number;
-  data: SpreadsheetData;
+  activeSheet: Sheet;
   selectedCell: string | null;
   selectionRange: string[];
   editingCell: string | null;
@@ -27,7 +27,7 @@ interface GridProps {
 export const Grid: React.FC<GridProps> = ({
   rows,
   cols,
-  data,
+  activeSheet,
   selectedCell,
   selectionRange,
   editingCell,
@@ -41,6 +41,12 @@ export const Grid: React.FC<GridProps> = ({
   onSelectRow,
   onSelectCol,
 }) => {
+  const data = activeSheet.data;
+  const hiddenRows = activeSheet.hiddenRows || {};
+  const hiddenCols = activeSheet.hiddenCols || {};
+  const rowHeights = activeSheet.rowHeights || {};
+  const colWidths = activeSheet.colWidths || {};
+
   const getColHeader = (col: number) => {
     let header = '';
     let c = col + 1;
@@ -52,6 +58,10 @@ export const Grid: React.FC<GridProps> = ({
     return header;
   };
 
+  const colTemplate = `40px ${Array.from({ length: cols })
+    .map((_, i) => hiddenCols[i] ? '0px' : `${colWidths[i] || 120}px`)
+    .join(' ')}`;
+
   return (
     <div 
       className="flex-1 overflow-auto bg-white select-none"
@@ -60,9 +70,10 @@ export const Grid: React.FC<GridProps> = ({
       aria-colcount={cols + 1}
       aria-label="Spreadsheet Grid"
     >
+      {/* Column Headers */}
       <div 
         className="grid sticky top-0 left-0 z-30"
-        style={{ gridTemplateColumns: `40px repeat(${cols}, 120px)` }}
+        style={{ gridTemplateColumns: colTemplate }}
         role="row"
       >
         <div 
@@ -75,8 +86,9 @@ export const Grid: React.FC<GridProps> = ({
             key={i}
             onClick={(e) => onSelectCol(i, e.shiftKey)}
             className={cn(
-              "bg-muted h-8 border-r border-b border-border flex items-center justify-center text-xs font-medium text-muted-foreground cursor-pointer hover:bg-muted-foreground/10 transition-colors",
-              selectionRange.includes(indexToCoordinate(0, i)) && selectionRange.includes(indexToCoordinate(rows - 1, i)) && "bg-primary/20 text-primary font-bold"
+              "bg-muted h-8 border-r border-b border-border flex items-center justify-center text-xs font-medium text-muted-foreground cursor-pointer hover:bg-muted-foreground/10 transition-colors overflow-hidden",
+              selectionRange.includes(indexToCoordinate(0, i)) && selectionRange.includes(indexToCoordinate(rows - 1, i)) && "bg-primary/20 text-primary font-bold",
+              hiddenCols[i] && "hidden"
             )}
             role="columnheader"
             aria-label={`Column ${getColHeader(i)}`}
@@ -89,59 +101,73 @@ export const Grid: React.FC<GridProps> = ({
       <div 
         className="grid relative" 
         style={{ 
-          gridTemplateColumns: `40px repeat(${cols}, 120px)`,
-          gridAutoRows: '32px' 
+          gridTemplateColumns: colTemplate,
         }}
       >
-        {Array.from({ length: rows }).map((_, r) => (
-          <React.Fragment key={r}>
-            <div 
-              onClick={(e) => onSelectRow(r, e.shiftKey)}
-              className={cn(
-                "bg-muted border-r border-b border-border flex items-center justify-center text-xs font-medium text-muted-foreground sticky left-0 z-20 cursor-pointer hover:bg-muted-foreground/10 transition-colors",
-                selectionRange.includes(indexToCoordinate(r, 0)) && selectionRange.includes(indexToCoordinate(r, cols - 1)) && "bg-primary/20 text-primary font-bold"
-              )}
-              style={{ gridRowStart: r + 1, gridColumnStart: 1 }}
-              role="rowheader"
-              aria-label={`Row ${r + 1}`}
-            >
-              {r + 1}
-            </div>
-            {Array.from({ length: cols }).map((_, c) => {
-              const coord = indexToCoordinate(r, c);
-              const cellData = data[coord];
-              
-              if (cellData?.hiddenByMerge) return null;
+        {Array.from({ length: rows }).map((_, r) => {
+          if (hiddenRows[r]) return null;
 
-              return (
-                <div 
-                  key={coord} 
-                  role="row"
-                  style={{ 
-                    gridRowStart: r + 1, 
-                    gridColumnStart: c + 2,
-                    gridRowEnd: cellData?.rowSpan ? `span ${cellData.rowSpan}` : undefined,
-                    gridColumnEnd: cellData?.colSpan ? `span ${cellData.colSpan}` : undefined,
-                  }}
-                >
-                  <Cell
-                    coord={coord}
-                    data={cellData}
-                    isActive={selectedCell === coord}
-                    isInRange={selectionRange.includes(coord)}
-                    isEditing={editingCell === coord}
-                    initialValue={editingCell === coord ? editingValue : null}
-                    onMouseDown={(coord, shift) => onMouseDown(coord, shift)}
-                    onMouseEnter={onMouseEnter}
-                    onDoubleClick={onDoubleClick}
-                    onUpdate={onUpdate}
-                    onFinishEdit={onFinishEdit}
-                  />
-                </div>
-              );
-            })}
-          </React.Fragment>
-        ))}
+          const rowHeight = rowHeights[r] || 32;
+
+          return (
+            <React.Fragment key={r}>
+              {/* Row Header */}
+              <div 
+                onClick={(e) => onSelectRow(r, e.shiftKey)}
+                className={cn(
+                  "bg-muted border-r border-b border-border flex items-center justify-center text-xs font-medium text-muted-foreground sticky left-0 z-20 cursor-pointer hover:bg-muted-foreground/10 transition-colors overflow-hidden",
+                  selectionRange.includes(indexToCoordinate(r, 0)) && selectionRange.includes(indexToCoordinate(r, cols - 1)) && "bg-primary/20 text-primary font-bold"
+                )}
+                style={{ 
+                  gridRowStart: r + 1, 
+                  gridColumnStart: 1,
+                  height: rowHeight
+                }}
+                role="rowheader"
+                aria-label={`Row ${r + 1}`}
+              >
+                {r + 1}
+              </div>
+              {/* Cells in Row */}
+              {Array.from({ length: cols }).map((_, c) => {
+                if (hiddenCols[c]) return null;
+
+                const coord = indexToCoordinate(r, c);
+                const cellData = data[coord];
+                
+                if (cellData?.hiddenByMerge) return null;
+
+                return (
+                  <div 
+                    key={coord} 
+                    role="row"
+                    style={{ 
+                      gridRowStart: r + 1, 
+                      gridColumnStart: c + 2,
+                      gridRowEnd: cellData?.rowSpan ? `span ${cellData.rowSpan}` : undefined,
+                      gridColumnEnd: cellData?.colSpan ? `span ${cellData.colSpan}` : undefined,
+                      height: cellData?.rowSpan ? undefined : rowHeight
+                    }}
+                  >
+                    <Cell
+                      coord={coord}
+                      data={cellData}
+                      isActive={selectedCell === coord}
+                      isInRange={selectionRange.includes(coord)}
+                      isEditing={editingCell === coord}
+                      initialValue={editingCell === coord ? editingValue : null}
+                      onMouseDown={(coord, shift) => onMouseDown(coord, shift)}
+                      onMouseEnter={onMouseEnter}
+                      onDoubleClick={onDoubleClick}
+                      onUpdate={onUpdate}
+                      onFinishEdit={onFinishEdit}
+                    />
+                  </div>
+                );
+              })}
+            </React.Fragment>
+          );
+        })}
       </div>
     </div>
   );

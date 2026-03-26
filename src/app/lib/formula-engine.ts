@@ -22,6 +22,10 @@ export type Sheet = {
   id: string;
   name: string;
   data: SpreadsheetData;
+  rowHeights?: Record<number, number>;
+  colWidths?: Record<number, number>;
+  hiddenRows?: Record<number, boolean>;
+  hiddenCols?: Record<number, boolean>;
 };
 
 export type WorkbookData = Record<string, Sheet>;

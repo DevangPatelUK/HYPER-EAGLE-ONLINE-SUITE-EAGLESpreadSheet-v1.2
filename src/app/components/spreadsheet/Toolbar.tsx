@@ -36,7 +36,9 @@ import {
   ListFilter,
   LetterText,
   Combine,
-  Split
+  Split,
+  EyeOff,
+  Eye
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -77,6 +79,9 @@ interface ToolbarProps {
   onDeleteRow: () => void;
   onInsertCol: () => void;
   onDeleteCol: () => void;
+  onHideRows: () => void;
+  onHideCols: () => void;
+  onUnhideAll: () => void;
   onSort: (dir: 'asc' | 'desc') => void;
   onMerge: () => void;
   onUnmerge: () => void;
@@ -129,6 +134,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onDeleteRow,
   onInsertCol,
   onDeleteCol,
+  onHideRows,
+  onHideCols,
+  onUnhideAll,
   onSort,
   onMerge,
   onUnmerge,
@@ -191,6 +199,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             <DropdownMenuItem onClick={onClear}><Eraser className="h-4 w-4 mr-2" />Clear Selection</DropdownMenuItem>
             <DropdownMenuItem onClick={onDeleteRow}><Rows className="h-4 w-4 mr-2" />Delete Selected Row</DropdownMenuItem>
             <DropdownMenuItem onClick={onDeleteCol}><Columns className="h-4 w-4 mr-2" />Delete Selected Col</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onHideRows}><EyeOff className="h-4 w-4 mr-2" />Hide Selected Rows</DropdownMenuItem>
+            <DropdownMenuItem onClick={onHideCols}><EyeOff className="h-4 w-4 mr-2" />Hide Selected Cols</DropdownMenuItem>
+            <DropdownMenuItem onClick={onUnhideAll}><Eye className="h-4 w-4 mr-2" />Unhide All</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onMerge}><Combine className="h-4 w-4 mr-2" />Merge Selection</DropdownMenuItem>
             <DropdownMenuItem onClick={onUnmerge}><Split className="h-4 w-4 mr-2" />Unmerge Selection</DropdownMenuItem>

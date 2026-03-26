@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Toolbar } from './components/spreadsheet/Toolbar';
 import { FormulaBar } from './components/spreadsheet/FormulaBar';
 import { Grid } from './components/spreadsheet/Grid';
@@ -44,6 +44,8 @@ export default function SpreadsheetPage() {
     deleteRow,
     insertCol,
     deleteCol,
+    hideRows,
+    hideCols,
     sortRange,
     handleMouseDown,
     handleMouseEnter,
@@ -117,6 +119,25 @@ export default function SpreadsheetPage() {
 
   const activeSheet = workbook[activeSheetId];
 
+  const handleHideRows = useCallback(() => {
+    if (selectionRange.length === 0) return;
+    const indices = Array.from(new Set(selectionRange.map(c => coordinateToIndex(c)!.row)));
+    hideRows(indices, true);
+  }, [selectionRange, hideRows]);
+
+  const handleHideCols = useCallback(() => {
+    if (selectionRange.length === 0) return;
+    const indices = Array.from(new Set(selectionRange.map(c => coordinateToIndex(c)!.col)));
+    hideCols(indices, true);
+  }, [selectionRange, hideCols]);
+
+  const handleUnhideAll = useCallback(() => {
+    const rowCount = Array.from({ length: rows }).map((_, i) => i);
+    const colCount = Array.from({ length: cols }).map((_, i) => i);
+    hideRows(rowCount, false);
+    hideCols(colCount, false);
+  }, [rows, cols, hideRows, hideCols]);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background outline-none" onKeyDown={handleKeyDown} tabIndex={0} role="application">
       <header role="banner">
@@ -146,6 +167,9 @@ export default function SpreadsheetPage() {
           onDeleteRow={() => selectedCell && deleteRow(coordinateToIndex(selectedCell)!.row)}
           onInsertCol={() => selectedCell && insertCol(coordinateToIndex(selectedCell)!.col)}
           onDeleteCol={() => selectedCell && deleteCol(coordinateToIndex(selectedCell)!.col)}
+          onHideRows={handleHideRows}
+          onHideCols={handleHideCols}
+          onUnhideAll={handleUnhideAll}
           onSort={(dir) => sortRange(dir)}
           onMerge={mergeSelection}
           onUnmerge={unmergeSelection}
@@ -155,7 +179,25 @@ export default function SpreadsheetPage() {
         <FormulaBar selectedCoord={selectedCell} formula={selectedCell ? (data[selectedCell]?.formula || data[selectedCell]?.value || '') : ''} onChange={(val) => selectedCell && handleUpdate(selectedCell, val)} />
       </header>
       <main className="flex-1 overflow-hidden flex flex-col relative border-t border-border">
-        <Grid rows={rows} cols={cols} data={data} selectedCell={selectedCell} selectionRange={selectionRange} editingCell={editingCell} editingValue={editingValue} onMouseDown={handleMouseDown} onMouseEnter={handleMouseEnter} onMouseUp={handleMouseUp} onDoubleClick={(c) => { setEditingCell(c); setEditingValue(null); }} onUpdate={handleUpdate} onFinishEdit={() => { setEditingCell(null); setEditingValue(null); }} onSelectRow={selectRow} onSelectCol={selectCol} />
+        {activeSheet && (
+          <Grid 
+            rows={rows} 
+            cols={cols} 
+            activeSheet={activeSheet}
+            selectedCell={selectedCell} 
+            selectionRange={selectionRange} 
+            editingCell={editingCell} 
+            editingValue={editingValue} 
+            onMouseDown={handleMouseDown} 
+            onMouseEnter={handleMouseEnter} 
+            onMouseUp={handleMouseUp} 
+            onDoubleClick={(c) => { setEditingCell(c); setEditingValue(null); }} 
+            onUpdate={handleUpdate} 
+            onFinishEdit={() => { setEditingCell(null); setEditingValue(null); }} 
+            onSelectRow={selectRow} 
+            onSelectCol={selectCol} 
+          />
+        )}
       </main>
       <nav className="h-10 bg-white border-t border-border flex items-center px-2 gap-1 overflow-x-auto scrollbar-hide shrink-0 shadow-inner">
         {Object.values(workbook).map((sheet) => (

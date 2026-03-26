@@ -171,7 +171,32 @@ export function useSheetStore(rows: number, cols: number) {
         newData[coord] = cell;
       }
     });
-    newWb[activeSheetId] = { ...sheet, data: newData };
+    
+    // Shift row heights and hidden states
+    const newRowHeights: Record<number, number> = {};
+    if (sheet.rowHeights) {
+      Object.entries(sheet.rowHeights).forEach(([r, h]) => {
+        const rowIdx = parseInt(r);
+        if (rowIdx >= afterRowIndex) newRowHeights[rowIdx + 1] = h;
+        else newRowHeights[rowIdx] = h;
+      });
+    }
+    
+    const newHiddenRows: Record<number, boolean> = {};
+    if (sheet.hiddenRows) {
+      Object.entries(sheet.hiddenRows).forEach(([r, hidden]) => {
+        const rowIdx = parseInt(r);
+        if (rowIdx >= afterRowIndex) newHiddenRows[rowIdx + 1] = hidden;
+        else newHiddenRows[rowIdx] = hidden;
+      });
+    }
+
+    newWb[activeSheetId] = { 
+      ...sheet, 
+      data: newData, 
+      rowHeights: newRowHeights, 
+      hiddenRows: newHiddenRows 
+    };
     pushToHistory(recalculateAll(newWb));
   }, [activeSheetId, workbook, recalculateAll, pushToHistory]);
 
@@ -189,7 +214,34 @@ export function useSheetStore(rows: number, cols: number) {
         newData[coord] = cell;
       }
     });
-    newWb[activeSheetId] = { ...sheet, data: newData };
+
+    // Shift row heights and hidden states
+    const newRowHeights: Record<number, number> = {};
+    if (sheet.rowHeights) {
+      Object.entries(sheet.rowHeights).forEach(([r, h]) => {
+        const rowIdx = parseInt(r);
+        if (rowIdx === rowIndex) return;
+        if (rowIdx > rowIndex) newRowHeights[rowIdx - 1] = h;
+        else newRowHeights[rowIdx] = h;
+      });
+    }
+
+    const newHiddenRows: Record<number, boolean> = {};
+    if (sheet.hiddenRows) {
+      Object.entries(sheet.hiddenRows).forEach(([r, hidden]) => {
+        const rowIdx = parseInt(r);
+        if (rowIdx === rowIndex) return;
+        if (rowIdx > rowIndex) newHiddenRows[rowIdx - 1] = hidden;
+        else newHiddenRows[rowIdx] = hidden;
+      });
+    }
+
+    newWb[activeSheetId] = { 
+      ...sheet, 
+      data: newData, 
+      rowHeights: newRowHeights, 
+      hiddenRows: newHiddenRows 
+    };
     pushToHistory(recalculateAll(newWb));
   }, [activeSheetId, workbook, recalculateAll, pushToHistory]);
 
@@ -206,7 +258,32 @@ export function useSheetStore(rows: number, cols: number) {
         newData[coord] = cell;
       }
     });
-    newWb[activeSheetId] = { ...sheet, data: newData };
+
+    // Shift col widths and hidden states
+    const newColWidths: Record<number, number> = {};
+    if (sheet.colWidths) {
+      Object.entries(sheet.colWidths).forEach(([c, w]) => {
+        const colIdx = parseInt(c);
+        if (colIdx >= afterColIndex) newColWidths[colIdx + 1] = w;
+        else newColWidths[colIdx] = w;
+      });
+    }
+
+    const newHiddenCols: Record<number, boolean> = {};
+    if (sheet.hiddenCols) {
+      Object.entries(sheet.hiddenCols).forEach(([c, hidden]) => {
+        const colIdx = parseInt(c);
+        if (colIdx >= afterColIndex) newHiddenCols[colIdx + 1] = hidden;
+        else newHiddenCols[colIdx] = hidden;
+      });
+    }
+
+    newWb[activeSheetId] = { 
+      ...sheet, 
+      data: newData, 
+      colWidths: newColWidths, 
+      hiddenCols: newHiddenCols 
+    };
     pushToHistory(recalculateAll(newWb));
   }, [activeSheetId, workbook, recalculateAll, pushToHistory]);
 
@@ -224,9 +301,62 @@ export function useSheetStore(rows: number, cols: number) {
         newData[coord] = cell;
       }
     });
-    newWb[activeSheetId] = { ...sheet, data: newData };
+
+    // Shift col widths and hidden states
+    const newColWidths: Record<number, number> = {};
+    if (sheet.colWidths) {
+      Object.entries(sheet.colWidths).forEach(([c, w]) => {
+        const colIdx = parseInt(c);
+        if (colIdx === colIndex) return;
+        if (colIdx > colIndex) newColWidths[colIdx - 1] = w;
+        else newColWidths[colIdx] = w;
+      });
+    }
+
+    const newHiddenCols: Record<number, boolean> = {};
+    if (sheet.hiddenCols) {
+      Object.entries(sheet.hiddenCols).forEach(([c, hidden]) => {
+        const colIdx = parseInt(c);
+        if (colIdx === colIndex) return;
+        if (colIdx > colIndex) newHiddenCols[colIdx - 1] = hidden;
+        else newHiddenCols[colIdx] = hidden;
+      });
+    }
+
+    newWb[activeSheetId] = { 
+      ...sheet, 
+      data: newData, 
+      colWidths: newColWidths, 
+      hiddenCols: newHiddenCols 
+    };
     pushToHistory(recalculateAll(newWb));
   }, [activeSheetId, workbook, recalculateAll, pushToHistory]);
+
+  const hideRows = useCallback((rowIndices: number[], hide: boolean) => {
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    if (!sheet) return;
+    const newHiddenRows = { ...(sheet.hiddenRows || {}) };
+    rowIndices.forEach(idx => {
+      if (hide) newHiddenRows[idx] = true;
+      else delete newHiddenRows[idx];
+    });
+    newWb[activeSheetId] = { ...sheet, hiddenRows: newHiddenRows };
+    pushToHistory(newWb);
+  }, [activeSheetId, workbook, pushToHistory]);
+
+  const hideCols = useCallback((colIndices: number[], hide: boolean) => {
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    if (!sheet) return;
+    const newHiddenCols = { ...(sheet.hiddenCols || {}) };
+    colIndices.forEach(idx => {
+      if (hide) newHiddenCols[idx] = true;
+      else delete newHiddenCols[idx];
+    });
+    newWb[activeSheetId] = { ...sheet, hiddenCols: newHiddenCols };
+    pushToHistory(newWb);
+  }, [activeSheetId, workbook, pushToHistory]);
 
   const sortRange = useCallback((direction: 'asc' | 'desc') => {
     if (selectionRange.length < 2) return;
@@ -401,6 +531,8 @@ export function useSheetStore(rows: number, cols: number) {
     deleteRow,
     insertCol,
     deleteCol,
+    hideRows,
+    hideCols,
     sortRange,
     handleMouseDown,
     handleMouseEnter,
