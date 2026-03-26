@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Toolbar } from './components/spreadsheet/Toolbar';
 import { FormulaBar } from './components/spreadsheet/FormulaBar';
 import { Grid } from './components/spreadsheet/Grid';
 import { AIAssistant } from './components/spreadsheet/AIAssistant';
 import { useSheetStore } from './lib/sheet-store';
-import { evaluateFormula, coordinateToIndex } from './lib/formula-engine';
+import { evaluateFormula } from './lib/formula-engine';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import { Plus, X, ChevronRight } from 'lucide-react';
@@ -43,12 +43,14 @@ export default function SpreadsheetPage() {
   const [aiOpen, setAiOpen] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('sheet-flow-workbook');
+    const saved = localStorage.getItem('sheet-flow-workbook-v2');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setWorkbook(parsed.workbook);
-        setActiveSheetId(parsed.activeSheetId || Object.keys(parsed.workbook)[0]);
+        if (parsed.workbook && Object.keys(parsed.workbook).length > 0) {
+          setWorkbook(parsed.workbook);
+          setActiveSheetId(parsed.activeSheetId || Object.keys(parsed.workbook)[0]);
+        }
       } catch (e) {
         console.error('Failed to load saved workbook');
       }
@@ -56,7 +58,7 @@ export default function SpreadsheetPage() {
   }, [setWorkbook, setActiveSheetId]);
 
   const handleSave = () => {
-    localStorage.setItem('sheet-flow-workbook', JSON.stringify({ workbook, activeSheetId }));
+    localStorage.setItem('sheet-flow-workbook-v2', JSON.stringify({ workbook, activeSheetId }));
     toast({ title: 'Saved', description: 'Workbook saved successfully.' });
   };
 
@@ -109,7 +111,7 @@ export default function SpreadsheetPage() {
           onMouseUp={handleMouseUp}
           onDoubleClick={(c) => { setEditingCell(c); setEditingValue(null); }}
           onUpdate={handleUpdate}
-          onFinishEdit={(key) => {
+          onFinishEdit={() => {
             setEditingCell(null);
             setEditingValue(null);
           }}
@@ -119,14 +121,14 @@ export default function SpreadsheetPage() {
       </div>
 
       {/* Sheet Tabs Bar */}
-      <div className="h-10 bg-white border-t border-border flex items-center px-2 gap-1 overflow-x-auto scrollbar-hide shrink-0">
+      <div className="h-10 bg-white border-t border-border flex items-center px-2 gap-1 overflow-x-auto scrollbar-hide shrink-0 shadow-inner">
         {Object.values(workbook).map((sheet) => (
           <div
             key={sheet.id}
             className={cn(
-              "group flex items-center h-full px-4 text-xs font-semibold cursor-pointer border-r border-border transition-all min-w-[120px] justify-between",
+              "group flex items-center h-full px-4 text-xs font-semibold cursor-pointer border-r border-border transition-all min-w-[140px] justify-between relative",
               activeSheetId === sheet.id 
-                ? "bg-primary text-white" 
+                ? "bg-primary text-white z-10" 
                 : "bg-secondary/20 text-muted-foreground hover:bg-secondary/40"
             )}
             onClick={() => setActiveSheetId(sheet.id)}
@@ -138,9 +140,12 @@ export default function SpreadsheetPage() {
                 onClick={(e) => { e.stopPropagation(); removeSheet(sheet.id); }}
               />
             )}
+            {activeSheetId === sheet.id && (
+              <div className="absolute top-0 left-0 w-full h-0.5 bg-accent" />
+            )}
           </div>
         ))}
-        <Button variant="ghost" size="icon" className="h-8 w-8 ml-1" onClick={addSheet}>
+        <Button variant="ghost" size="icon" className="h-8 w-8 ml-1 hover:bg-primary/10 hover:text-primary" onClick={addSheet}>
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -149,7 +154,7 @@ export default function SpreadsheetPage() {
 
       <div className="h-6 bg-primary text-[10px] text-white flex items-center px-4 justify-between uppercase tracking-widest font-bold">
         <div className="flex items-center gap-2">
-          <span>SheetFlow v1.1</span>
+          <span>SheetFlow v1.2</span>
           <ChevronRight className="h-3 w-3" />
           <span>{activeSheet?.name}</span>
         </div>
@@ -160,7 +165,7 @@ export default function SpreadsheetPage() {
         open={aiOpen}
         onOpenChange={setAiOpen}
         selectedRange={selectedCell}
-        selectedRangeData={[]} // Selection range data extraction could be added if needed
+        selectedRangeData={[]} 
         onApplyFormula={(f) => selectedCell && handleUpdate(selectedCell, f)}
       />
     </div>

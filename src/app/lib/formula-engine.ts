@@ -83,11 +83,12 @@ function getCellValue(
   let cellCoord = fullRef;
 
   if (fullRef.includes('!')) {
-    const [sheetName, coord] = fullRef.split('!');
+    const parts = fullRef.split('!');
+    const sheetName = parts[0];
+    cellCoord = parts[1];
     const targetSheet = Object.values(workbook).find(s => s.name.toUpperCase() === sheetName.toUpperCase());
     if (!targetSheet) return '#REF!';
     sheetId = targetSheet.id;
-    cellCoord = coord;
   }
 
   const visitKey = `${sheetId}!${cellCoord}`;
@@ -127,11 +128,12 @@ export function evaluateFormula(
       let effectiveRangeStr = rangeStr;
 
       if (rangeStr.includes('!')) {
-        const [sheetName, r] = rangeStr.split('!');
+        const parts = rangeStr.split('!');
+        const sheetName = parts[0];
+        effectiveRangeStr = parts[1];
         const targetSheet = Object.values(workbook).find(s => s.name.toUpperCase() === sheetName.toUpperCase());
         if (!targetSheet) return '#REF!';
         targetSheetId = targetSheet.id;
-        effectiveRangeStr = r;
       }
 
       const coords = effectiveRangeStr.includes(':') ? parseRange(effectiveRangeStr) : [effectiveRangeStr];
@@ -151,7 +153,20 @@ export function evaluateFormula(
       }
     }
 
-    // 2. Handle IF Function
+    // 2. Handle ROUND Function
+    if (expression.startsWith('ROUND(')) {
+      const argsStr = expression.slice(6, -1);
+      const args = argsStr.split(',');
+      if (args.length !== 2) return '#NAME?';
+      
+      const valToRound = parseFloat(getCellValue(args[0].trim(), workbook, currentSheetId, visited));
+      const digits = parseInt(args[1].trim());
+      
+      if (isNaN(valToRound) || isNaN(digits)) return '#VALUE!';
+      return (Math.round(valToRound * Math.pow(10, digits)) / Math.pow(10, digits)).toString();
+    }
+
+    // 3. Handle IF Function
     if (expression.startsWith('IF(')) {
       const argsStr = expression.slice(3, -1);
       const args = argsStr.split(',').map(s => s.trim());
@@ -161,7 +176,7 @@ export function evaluateFormula(
       const trueVal = args[1];
       const falseVal = args[2];
 
-      const processedCondition = condition.replace(/([A-Z]+!)?[A-Z]+\d+/g, (match) => {
+      const processedCondition = condition.replace(/([A-Z0-9_]+!)?[A-Z]+\d+/g, (match) => {
         const val = getCellValue(match, workbook, currentSheetId, visited);
         return isNaN(parseFloat(val)) ? `"${val}"` : val;
       });
@@ -170,14 +185,14 @@ export function evaluateFormula(
       const result = eval(processedCondition);
       const chosenBranch = result ? trueVal : falseVal;
 
-      if (chosenBranch.match(/([A-Z]+!)?[A-Z]+\d+$/)) {
+      if (chosenBranch.match(/([A-Z0-9_]+!)?[A-Z]+\d+$/)) {
         return getCellValue(chosenBranch, workbook, currentSheetId, visited);
       }
       return chosenBranch.replace(/"/g, '');
     }
 
-    // 3. Basic Arithmetic and individual cell references (including cross-sheet)
-    let processedExpr = expression.replace(/([A-Z]+!)?[A-Z]+\d+/g, (match) => {
+    // 4. Basic Arithmetic and individual cell references
+    let processedExpr = expression.replace(/([A-Z0-9_]+!)?[A-Z]+\d+/g, (match) => {
       const val = getCellValue(match, workbook, currentSheetId, visited);
       if (val.startsWith('#') && val !== '#CIRCULAR!') throw new Error(val);
       const num = parseFloat(val || '0');

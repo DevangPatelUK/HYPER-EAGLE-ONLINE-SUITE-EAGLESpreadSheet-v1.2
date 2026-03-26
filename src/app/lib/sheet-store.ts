@@ -41,22 +41,25 @@ export function useSheetStore(rows: number, cols: number) {
 
   const recalculateAll = useCallback((wb: WorkbookData) => {
     const updatedWb = { ...wb };
-    // Simple iterative multi-pass to ensure cross-sheet dependencies resolve
-    // In a real app, you'd use a dependency graph.
-    for (let i = 0; i < 2; i++) {
+    // Multi-pass to ensure cross-sheet dependencies resolve
+    for (let i = 0; i < 3; i++) {
       Object.keys(updatedWb).forEach(sheetId => {
         const sheet = updatedWb[sheetId];
         const newData = { ...sheet.data };
+        let changed = false;
         Object.keys(newData).forEach(coord => {
           const cell = newData[coord];
           if (cell.formula?.startsWith('=')) {
-            newData[coord] = {
-              ...cell,
-              value: evaluateFormula(coord, cell.formula, updatedWb, sheetId)
-            };
+            const newValue = evaluateFormula(coord, cell.formula, updatedWb, sheetId);
+            if (newValue !== cell.value) {
+              newData[coord] = { ...cell, value: newValue };
+              changed = true;
+            }
           }
         });
-        updatedWb[sheetId] = { ...sheet, data: newData };
+        if (changed) {
+          updatedWb[sheetId] = { ...sheet, data: newData };
+        }
       });
     }
     return updatedWb;
@@ -66,6 +69,7 @@ export function useSheetStore(rows: number, cols: number) {
     setWorkbook((prev) => {
       const newWb = { ...prev };
       const sheet = newWb[activeSheetId];
+      if (!sheet) return prev;
       const newData = { ...sheet.data };
       const current = newData[coord] || { value: '', formula: '' };
       newData[coord] = { ...current, ...updates };
@@ -85,10 +89,13 @@ export function useSheetStore(rows: number, cols: number) {
   };
 
   const renameSheet = (id: string, newName: string) => {
-    setWorkbook(prev => ({
-      ...prev,
-      [id]: { ...prev[id], name: newName }
-    }));
+    setWorkbook(prev => {
+      if (!prev[id]) return prev;
+      return {
+        ...prev,
+        [id]: { ...prev[id], name: newName }
+      };
+    });
   };
 
   const removeSheet = (id: string) => {
@@ -96,7 +103,7 @@ export function useSheetStore(rows: number, cols: number) {
     setWorkbook(prev => {
       const newWb = { ...prev };
       delete newWb[id];
-      return newWb;
+      return recalculateAll(newWb);
     });
     if (activeSheetId === id) {
       setActiveSheetId(Object.keys(workbook).find(k => k !== id)!);
