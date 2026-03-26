@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { CellData, formatCellValue, evaluateConditionalFormatting, validateValue } from '@/app/lib/formula-engine';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Lock } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -24,6 +25,7 @@ interface CellProps {
   onDoubleClick: (coord: string) => void;
   onUpdate: (coord: string, value: string) => void;
   onFinishEdit: (nextKey?: string) => void;
+  isProtected?: boolean;
 }
 
 export const Cell: React.FC<CellProps> = ({
@@ -38,9 +40,12 @@ export const Cell: React.FC<CellProps> = ({
   onDoubleClick,
   onUpdate,
   onFinishEdit,
+  isProtected,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [localValue, setLocalValue] = useState(data?.formula || data?.value || '');
+
+  const isActuallyLocked = data?.isLocked || isProtected;
 
   useEffect(() => {
     if (!isEditing) {
@@ -102,7 +107,19 @@ export const Cell: React.FC<CellProps> = ({
     onMouseDown(coord, e.shiftKey);
   };
 
+  const handleDoubleClickInternal = () => {
+    if (isActuallyLocked) {
+      toast({ title: 'Cell Protected', description: 'This cell is locked for editing.', variant: 'destructive' });
+      return;
+    }
+    onDoubleClick(coord);
+  };
+
   const handleCheckboxToggle = (checked: boolean) => {
+    if (isActuallyLocked) {
+      toast({ title: 'Cell Protected', description: 'This cell is locked for editing.', variant: 'destructive' });
+      return;
+    }
     onUpdate(coord, checked ? 'TRUE' : 'FALSE');
   };
 
@@ -150,8 +167,8 @@ export const Cell: React.FC<CellProps> = ({
     <div
       role="gridcell"
       aria-selected={isActive || isInRange}
-      aria-readonly={!isEditing}
-      aria-label={`Cell ${coord}, value: ${displayValue}${data?.comment ? `, comment: ${data.comment}` : ''}`}
+      aria-readonly={isActuallyLocked}
+      aria-label={`Cell ${coord}, value: ${displayValue}${data?.comment ? `, comment: ${data.comment}` : ''}${isActuallyLocked ? ', locked' : ''}`}
       className={cn(
         "relative h-full border-r border-b border-border min-w-[120px] flex items-center px-2 text-sm overflow-hidden select-none cursor-cell transition-colors",
         isInRange && "bg-primary/10",
@@ -163,7 +180,8 @@ export const Cell: React.FC<CellProps> = ({
         data?.strikethrough && "line-through",
         data?.align === 'center' && "justify-center",
         data?.align === 'right' && "justify-end",
-        data?.align === 'left' && "justify-start"
+        data?.align === 'left' && "justify-start",
+        isActuallyLocked && "bg-muted/30 cursor-not-allowed"
       )}
       style={{ 
         backgroundColor: conditionalStyle.backgroundColor || data?.backgroundColor || undefined,
@@ -171,11 +189,18 @@ export const Cell: React.FC<CellProps> = ({
       }}
       onMouseDown={handleMouseDown}
       onMouseEnter={() => onMouseEnter(coord)}
-      onDoubleClick={() => onDoubleClick(coord)}
+      onDoubleClick={handleDoubleClickInternal}
     >
       {/* Comment Indicator */}
       {data?.comment && (
         <div className="absolute top-0 right-0 w-0 h-0 border-t-[6px] border-t-accent border-l-[6px] border-l-transparent z-10" />
+      )}
+
+      {/* Lock Indicator */}
+      {data?.isLocked && (
+        <div className="absolute bottom-0 right-0 p-0.5 opacity-30">
+          <Lock className="h-2 w-2" />
+        </div>
       )}
 
       {isEditing && data?.type !== 'checkbox' ? (
@@ -186,6 +211,7 @@ export const Cell: React.FC<CellProps> = ({
             checked={data?.value?.toUpperCase() === 'TRUE'} 
             onCheckedChange={handleCheckboxToggle}
             className="h-4 w-4"
+            disabled={isActuallyLocked}
           />
         </div>
       ) : (

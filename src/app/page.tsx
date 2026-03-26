@@ -113,6 +113,12 @@ export default function SpreadsheetPage() {
   };
 
   const handleUpdate = (coord: string, val: string) => {
+    const cell = data[coord];
+    if (cell?.isLocked || workbook[activeSheetId]?.isProtected) {
+      toast({ title: 'Cell Protected', description: 'This cell is locked.', variant: 'destructive' });
+      return;
+    }
+
     if (val.startsWith('=')) {
       updateCell(coord, { formula: val, value: evaluateFormula(coord, val, workbook, activeSheetId) });
     } else {
@@ -149,6 +155,15 @@ export default function SpreadsheetPage() {
     hideRows(rowCount, false);
     hideCols(colCount, false);
   }, [rows, cols, hideRows, hideCols]);
+
+  const handleToggleProtectSheet = () => {
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    if (!sheet) return;
+    newWb[activeSheetId] = { ...sheet, isProtected: !sheet.isProtected };
+    setWorkbook(newWb);
+    toast({ title: sheet.isProtected ? 'Protection Removed' : 'Sheet Protected' });
+  };
 
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-background outline-none" onKeyDown={handleKeyDown} tabIndex={0} role="application">
@@ -192,6 +207,9 @@ export default function SpreadsheetPage() {
           onAddComment={handleAddComment}
           onValidation={(validation) => selectionRange.forEach(c => updateCell(c, { validation }))}
           onConditionalFormat={(rule) => selectionRange.forEach(c => updateCell(c, { conditionalFormats: rule ? [rule] : [] }))}
+          onLock={(lock) => selectionRange.forEach(c => updateCell(c, { isLocked: lock }))}
+          onToggleProtectSheet={handleToggleProtectSheet}
+          isSheetProtected={!!activeSheet?.isProtected}
           onImportCSV={() => {}} onExportCSV={() => {}} onExportJSON={() => {}}
           canUndo={canUndo} canRedo={canRedo}
         />

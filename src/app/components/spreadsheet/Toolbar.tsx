@@ -47,7 +47,10 @@ import {
   Layout,
   MessageSquarePlus,
   Zap,
-  ShieldCheck
+  ShieldCheck,
+  Lock,
+  Unlock,
+  Shield
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -65,7 +68,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubTrigger,
-  DropdownMenuSubContent
+  DropdownMenuSubContent,
+  DropdownMenuCheckboxItem
 } from "@/components/ui/dropdown-menu";
 import { ValidationRule, ConditionalFormatRule } from '@/app/lib/formula-engine';
 
@@ -105,6 +109,9 @@ interface ToolbarProps {
   onAddComment: () => void;
   onValidation: (rule: ValidationRule | undefined) => void;
   onConditionalFormat: (rule: ConditionalFormatRule | undefined) => void;
+  onLock: (lock: boolean) => void;
+  onToggleProtectSheet: () => void;
+  isSheetProtected: boolean;
   canUndo: boolean;
   canRedo: boolean;
   sheetName: string;
@@ -167,6 +174,9 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onAddComment,
   onValidation,
   onConditionalFormat,
+  onLock,
+  onToggleProtectSheet,
+  isSheetProtected,
   canUndo,
   canRedo,
   sheetName,
@@ -350,6 +360,18 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 <DropdownMenuItem onClick={() => onValidation({ type: 'date', allowEmpty: true })}>Dates Only</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => onValidation(undefined)}>Remove Validation</DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger><Shield className="h-4 w-4 mr-2" />Protection</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-[180px]">
+                <DropdownMenuItem onClick={() => onLock(true)}><Lock className="h-4 w-4 mr-2" />Lock Selection</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onLock(false)}><Unlock className="h-4 w-4 mr-2" />Unlock Selection</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem checked={isSheetProtected} onCheckedChange={onToggleProtectSheet}>
+                  Protect Sheet (Read-Only)
+                </DropdownMenuCheckboxItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
           </DropdownMenuContent>

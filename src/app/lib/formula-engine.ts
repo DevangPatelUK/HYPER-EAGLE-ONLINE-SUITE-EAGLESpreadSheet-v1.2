@@ -34,6 +34,7 @@ export type CellData = {
   comment?: string;
   validation?: ValidationRule;
   conditionalFormats?: ConditionalFormatRule[];
+  isLocked?: boolean;
 };
 
 export type SpreadsheetData = Record<string, CellData>;
@@ -56,6 +57,7 @@ export type Sheet = {
   filters?: Filter[];
   frozenRows?: number;
   frozenCols?: number;
+  isProtected?: boolean;
 };
 
 export type WorkbookData = Record<string, Sheet>;
