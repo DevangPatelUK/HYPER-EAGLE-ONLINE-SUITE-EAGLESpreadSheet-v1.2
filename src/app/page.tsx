@@ -38,6 +38,10 @@ export default function SpreadsheetPage() {
     removeSheet,
     selectRow,
     selectCol,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
   } = useSheetStore(rows, cols);
 
   const [aiOpen, setAiOpen] = useState(false);
@@ -89,6 +93,10 @@ export default function SpreadsheetPage() {
         onSave={handleSave}
         onDelete={() => removeSheet(activeSheetId)}
         onAI={() => setAiOpen(true)}
+        onUndo={undo}
+        onRedo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
       />
       
       <FormulaBar

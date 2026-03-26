@@ -44,6 +44,10 @@ interface ToolbarProps {
   onSave: () => void;
   onDelete: () => void;
   onAI: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   sheetName: string;
   onNameChange: (name: string) => void;
 }
@@ -68,6 +72,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onSave,
   onDelete,
   onAI,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
   sheetName,
   onNameChange,
 }) => {
@@ -121,6 +129,39 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Delete Sheet</TooltipContent>
+            </Tooltip>
+          </div>
+
+          <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
+
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8" 
+                  onClick={onUndo}
+                  disabled={!canUndo}
+                >
+                  <Undo className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Undo (Ctrl+Z)</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8" 
+                  onClick={onRedo}
+                  disabled={!canRedo}
+                >
+                  <Redo className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Redo (Ctrl+Y)</TooltipContent>
             </Tooltip>
           </div>
 
