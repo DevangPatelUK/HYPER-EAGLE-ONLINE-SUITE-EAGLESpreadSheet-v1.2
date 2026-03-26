@@ -41,24 +41,25 @@ export function useSheetStore(rows: number, cols: number, initialData: Spreadshe
       const newData = { ...prev };
       const current = newData[coord] || { value: '', formula: '' };
       
-      let finalFormula = updates.formula !== undefined ? updates.formula : current.formula;
-      let finalValue = updates.value !== undefined ? updates.value : current.value;
-
-      newData[coord] = { 
+      const updatedCell = { 
         ...current, 
-        ...updates,
-        formula: finalFormula,
-        value: finalValue
+        ...updates
       };
+      
+      newData[coord] = updatedCell;
 
+      // Create a copy for fresh calculations
       const updatedData: SpreadsheetData = { ...newData };
-      // Recalculate all formulas dependent on changes
+      
+      // Multi-pass or simple iterative recalculation of all formulas
+      // In a small sheet, we can just re-evaluate all formulas.
+      // The engine handles the recursive resolution and circular checks.
       Object.keys(updatedData).forEach((key) => {
         const cell = updatedData[key];
         if (cell.formula?.startsWith('=')) {
           updatedData[key] = {
             ...cell,
-            value: evaluateFormula(cell.formula, updatedData)
+            value: evaluateFormula(key, cell.formula, updatedData)
           };
         }
       });
@@ -75,7 +76,6 @@ export function useSheetStore(rows: number, cols: number, initialData: Spreadshe
       setIsDragging(true);
     } else {
       if (selectedCell === coord) {
-        // Second click on the same cell: Enter edit mode
         setEditingCell(coord);
         setEditingValue(null);
         setIsDragging(false);
@@ -157,7 +157,6 @@ export function useSheetStore(rows: number, cols: number, initialData: Spreadshe
     if (editingCell) return;
     if (!selectedCell) return;
 
-    // Handle navigation
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
       if (e.key === 'ArrowUp') moveSelection('up');
       if (e.key === 'ArrowDown' || e.key === 'Enter') moveSelection('down');
@@ -167,14 +166,12 @@ export function useSheetStore(rows: number, cols: number, initialData: Spreadshe
       return;
     }
 
-    // Handle deletion
     if (e.key === 'Backspace' || e.key === 'Delete') {
       selectionRange.forEach(coord => updateCell(coord, { value: '', formula: '' }));
       e.preventDefault();
       return;
     }
 
-    // Start typing to edit
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       setEditingCell(selectedCell);
       setEditingValue(e.key);

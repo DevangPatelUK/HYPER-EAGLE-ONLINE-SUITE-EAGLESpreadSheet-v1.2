@@ -87,7 +87,7 @@ export default function SpreadsheetPage() {
 
   const handleUpdate = (coord: string, val: string) => {
     if (val.startsWith('=')) {
-      updateCell(coord, { formula: val, value: evaluateFormula(val, data) });
+      updateCell(coord, { formula: val, value: evaluateFormula(coord, val, data) });
     } else {
       updateCell(coord, { value: val, formula: '' });
     }

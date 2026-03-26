@@ -47,47 +47,123 @@ function parseRange(rangeStr: string): string[] {
   return coords;
 }
 
-export function evaluateFormula(formula: string, data: SpreadsheetData): string {
+/**
+ * Resolves a cell value, potentially evaluating its formula.
+ * Uses a visited set to detect circular dependencies.
+ */
+function getCellValue(coord: string, data: SpreadsheetData, visited: Set<string>): string {
+  if (visited.has(coord)) return '#CIRCULAR!';
+  
+  const cell = data[coord];
+  if (!cell) return '0';
+  if (!cell.formula || !cell.formula.startsWith('=')) return cell.value || '0';
+
+  visited.add(coord);
+  const result = evaluateFormula(coord, cell.formula, data, new Set(visited));
+  visited.delete(coord);
+  return result;
+}
+
+export function evaluateFormula(
+  coord: string, 
+  formula: string, 
+  data: SpreadsheetData, 
+  visited: Set<string> = new Set()
+): string {
   if (!formula.startsWith('=')) return formula;
   
-  const expression = formula.slice(1).toUpperCase();
+  const expression = formula.slice(1).trim().toUpperCase();
   
   try {
-    // Basic Sum
-    if (expression.startsWith('SUM(') && expression.endsWith(')')) {
-      const range = expression.slice(4, -1);
-      const coords = range.includes(':') ? parseRange(range) : [range];
-      const sum = coords.reduce((acc, coord) => {
-        const val = parseFloat(data[coord]?.value || '0');
-        return acc + (isNaN(val) ? 0 : val);
-      }, 0);
-      return sum.toString();
+    // 1. Handle Functions with Ranges (SUM, AVG, MIN, MAX, COUNT)
+    const rangeFuncRegex = /^(SUM|AVG|MIN|MAX|COUNT)\(([^)]+)\)$/;
+    const rangeMatch = expression.match(rangeFuncRegex);
+    
+    if (rangeMatch) {
+      const func = rangeMatch[1];
+      const rangeStr = rangeMatch[2];
+      const coords = rangeStr.includes(':') ? parseRange(rangeStr) : [rangeStr];
+      
+      const values = coords.map(c => {
+        const val = getCellValue(c, data, visited);
+        if (val.startsWith('#')) throw new Error(val);
+        return parseFloat(val || '0');
+      }).filter(v => !isNaN(v));
+
+      switch (func) {
+        case 'SUM': return values.reduce((a, b) => a + b, 0).toString();
+        case 'AVG': return values.length > 0 ? (values.reduce((a, b) => a + b, 0) / values.length).toString() : '0';
+        case 'MIN': return values.length > 0 ? Math.min(...values).toString() : '0';
+        case 'MAX': return values.length > 0 ? Math.max(...values).toString() : '0';
+        case 'COUNT': return values.length.toString();
+      }
     }
 
-    // Basic Average
-    if (expression.startsWith('AVG(') && expression.endsWith(')')) {
-      const range = expression.slice(4, -1);
-      const coords = range.includes(':') ? parseRange(range) : [range];
-      const vals = coords.map(c => parseFloat(data[c]?.value || '0')).filter(v => !isNaN(v));
-      return vals.length > 0 ? (vals.reduce((a, b) => a + b, 0) / vals.length).toString() : '0';
+    // 2. Handle IF Function: IF(condition, trueVal, falseVal)
+    if (expression.startsWith('IF(')) {
+      const argsStr = expression.slice(3, -1);
+      // Naive comma split (doesn't handle nested commas well, but works for basic IF)
+      const args = argsStr.split(',').map(s => s.trim());
+      if (args.length !== 3) return '#NAME?';
+
+      const condition = args[0];
+      const trueVal = args[1];
+      const falseVal = args[2];
+
+      // Replace references in condition
+      const processedCondition = condition.replace(/[A-Z]+\d+/g, (match) => {
+        const val = getCellValue(match, data, visited);
+        return isNaN(parseFloat(val)) ? `"${val}"` : val;
+      });
+
+      // Simple eval for condition
+      // eslint-disable-next-line no-eval
+      const result = eval(processedCondition);
+      const chosenBranch = result ? trueVal : falseVal;
+
+      if (chosenBranch.match(/^[A-Z]+\d+$/)) {
+        return getCellValue(chosenBranch, data, visited);
+      }
+      return chosenBranch.replace(/"/g, '');
     }
 
-    // Basic Arithmetic and simple cell references
-    // This is a naive implementation using eval for a "mini" system. 
-    // In production, use a safe math parser.
-    let processedExpr = expression.replace(/([A-Z]+\d+)/g, (match) => {
-      const val = parseFloat(data[match]?.value || '0');
-      return isNaN(val) ? '0' : val.toString();
+    // 3. Handle ROUND(value, digits)
+    if (expression.startsWith('ROUND(')) {
+      const args = expression.slice(6, -1).split(',').map(s => s.trim());
+      if (args.length !== 2) return '#NAME?';
+      
+      const valToRound = args[0].match(/^[A-Z]+\d+$/) 
+        ? parseFloat(getCellValue(args[0], data, visited)) 
+        : parseFloat(args[0]);
+      const digits = parseInt(args[1]);
+      
+      if (isNaN(valToRound) || isNaN(digits)) return '#VALUE!';
+      return valToRound.toFixed(digits);
+    }
+
+    // 4. Handle Basic Arithmetic and individual cell references
+    let processedExpr = expression.replace(/[A-Z]+\d+/g, (match) => {
+      const val = getCellValue(match, data, visited);
+      if (val.startsWith('#')) throw new Error(val);
+      const num = parseFloat(val || '0');
+      return isNaN(num) ? '0' : num.toString();
     });
 
-    // Sanitize expression for safe-ish eval (only numbers and basic operators)
+    // Check for division by zero
+    if (processedExpr.includes('/0') && !processedExpr.includes('/0.')) {
+      return '#DIV/0!';
+    }
+
+    // Sanitize and evaluate
     if (/^[0-9+\-*/().\s]+$/.test(processedExpr)) {
       // eslint-disable-next-line no-eval
-      return eval(processedExpr).toString();
+      const result = eval(processedExpr);
+      return isFinite(result) ? result.toString() : '#VALUE!';
     }
     
-    return expression;
-  } catch (e) {
+    return '#NAME?';
+  } catch (e: any) {
+    if (e.message.startsWith('#')) return e.message;
     return '#ERROR!';
   }
 }
