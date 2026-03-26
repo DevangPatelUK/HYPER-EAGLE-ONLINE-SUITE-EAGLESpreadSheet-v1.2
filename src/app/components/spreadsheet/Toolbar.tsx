@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Bold, AlignLeft, AlignCenter, AlignRight, FilePlus, Save, Trash2, Wand2 } from 'lucide-react';
+import { Bold, AlignLeft, AlignCenter, AlignRight, FilePlus, Save, Trash2, Wand2, Undo, Redo, LayoutGrid, Type, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -33,76 +33,159 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onNameChange,
 }) => {
   return (
-    <div className="flex items-center gap-2 p-2 bg-white border-b border-border shadow-sm">
-      <div className="flex items-center gap-1 px-2 border-r pr-4">
-        <input
-          value={sheetName}
-          onChange={(e) => onNameChange(e.target.value)}
-          className="bg-transparent border-none font-semibold text-primary focus:ring-0 text-lg w-48 outline-none"
-          placeholder="Sheet Name"
-        />
+    <div className="flex flex-col bg-white border-b border-border shadow-sm">
+      {/* Top Toolbox Navigation Header */}
+      <div className="flex items-center gap-4 px-4 py-1.5 border-b bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-widest select-none">
+        <span className="hover:text-primary cursor-pointer transition-colors px-1">File</span>
+        <span className="hover:text-primary cursor-pointer transition-colors px-1">Edit</span>
+        <span className="hover:text-primary cursor-pointer transition-colors px-1">Insert</span>
+        <span className="hover:text-primary cursor-pointer transition-colors px-1">Format</span>
+        <span className="hover:text-primary cursor-pointer transition-colors px-1">Data</span>
+        <span className="ml-auto text-accent flex items-center gap-1.5 opacity-80">
+          <Wand2 className="h-3 w-3" />
+          AI Toolbox
+        </span>
       </div>
 
-      <TooltipProvider>
-        <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onNew}><FilePlus className="h-4 w-4" /></Button>
-            </TooltipTrigger>
-            <TooltipContent>New Sheet</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onSave}><Save className="h-4 w-4" /></Button>
-            </TooltipTrigger>
-            <TooltipContent>Save Changes</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-destructive" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
-            </TooltipTrigger>
-            <TooltipContent>Delete Sheet</TooltipContent>
-          </Tooltip>
+      {/* Main Tool Box Actions */}
+      <div className="flex items-center gap-2 p-2 px-4 overflow-x-auto scrollbar-hide">
+        <div className="flex items-center gap-1 pr-4 border-r border-border shrink-0">
+          <LayoutGrid className="h-4 w-4 text-primary/60 mr-1" />
+          <input
+            value={sheetName}
+            onChange={(e) => onNameChange(e.target.value)}
+            className="bg-transparent border-none font-semibold text-primary focus:ring-0 text-base w-40 outline-none truncate"
+            placeholder="Untitled Sheet"
+          />
         </div>
 
-        <Separator orientation="vertical" className="h-6 mx-2" />
+        <TooltipProvider>
+          {/* File Actions */}
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={onNew}>
+                  <FilePlus className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>New Sheet</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={onSave}>
+                  <Save className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Save Sheet</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={onDelete}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Delete Sheet</TooltipContent>
+            </Tooltip>
+          </div>
 
-        <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={onBold}><Bold className="h-4 w-4" /></Button>
-            </TooltipTrigger>
-            <TooltipContent>Bold</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={() => onAlign('left')}><AlignLeft className="h-4 w-4" /></Button>
-            </TooltipTrigger>
-            <TooltipContent>Align Left</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={() => onAlign('center')}><AlignCenter className="h-4 w-4" /></Button>
-            </TooltipTrigger>
-            <TooltipContent>Align Center</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={() => onAlign('right')}><AlignRight className="h-4 w-4" /></Button>
-            </TooltipTrigger>
-            <TooltipContent>Align Right</TooltipContent>
-          </Tooltip>
-        </div>
+          <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
 
-        <Separator orientation="vertical" className="h-6 mx-2" />
+          {/* Edit History Actions */}
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {}}>
+                  <Undo className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Undo</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {}}>
+                  <Redo className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Redo</TooltipContent>
+            </Tooltip>
+          </div>
 
-        <div className="flex items-center gap-1">
-          <Button variant="outline" size="sm" className="gap-2 text-accent border-accent hover:bg-accent/10" onClick={onAI}>
-            <Wand2 className="h-4 w-4" />
-            AI Assistant
-          </Button>
-        </div>
-      </TooltipProvider>
+          <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
+
+          {/* Format Actions */}
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBold}>
+                  <Bold className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Bold</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAlign('left')}>
+                  <AlignLeft className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Align Left</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAlign('center')}>
+                  <AlignCenter className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Align Center</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAlign('right')}>
+                  <AlignRight className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Align Right</TooltipContent>
+            </Tooltip>
+          </div>
+
+          <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
+
+          {/* Additional Utility Actions */}
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Type className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Text Format</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Search className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Find & Replace</TooltipContent>
+            </Tooltip>
+          </div>
+
+          <div className="flex-1" />
+
+          {/* AI Assistant Button */}
+          <div className="flex items-center shrink-0">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-8 gap-2 bg-accent/5 text-accent border-accent/20 hover:bg-accent hover:text-white transition-all shadow-sm"
+              onClick={onAI}
+            >
+              <Wand2 className="h-3.5 w-3.5" />
+              AI Assistant
+            </Button>
+          </div>
+        </TooltipProvider>
+      </div>
     </div>
   );
 };
