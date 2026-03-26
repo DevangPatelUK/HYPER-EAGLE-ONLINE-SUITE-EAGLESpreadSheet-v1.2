@@ -190,6 +190,8 @@ export default function SpreadsheetPage() {
           onMerge={mergeSelection}
           onUnmerge={unmergeSelection}
           onAddComment={handleAddComment}
+          onValidation={(validation) => selectionRange.forEach(c => updateCell(c, { validation }))}
+          onConditionalFormat={(rule) => selectionRange.forEach(c => updateCell(c, { conditionalFormats: rule ? [rule] : [] }))}
           onImportCSV={() => {}} onExportCSV={() => {}} onExportJSON={() => {}}
           canUndo={canUndo} canRedo={canRedo}
         />

@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { CellData, formatCellValue } from '@/app/lib/formula-engine';
+import { CellData, formatCellValue, evaluateConditionalFormatting, validateValue } from '@/app/lib/formula-engine';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Tooltip,
@@ -10,6 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { toast } from '@/hooks/use-toast';
 
 interface CellProps {
   coord: string;
@@ -68,13 +69,25 @@ export const Cell: React.FC<CellProps> = ({
 
   const handleBlur = () => {
     if (isEditing) {
-      onUpdate(coord, localValue);
+      const validation = validateValue(localValue, data?.validation);
+      if (!validation.valid) {
+        toast({ title: 'Invalid Input', description: validation.message, variant: 'destructive' });
+        setLocalValue(data?.formula || data?.value || '');
+      } else {
+        onUpdate(coord, localValue);
+      }
       onFinishEdit();
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === 'Tab') {
+      const validation = validateValue(localValue, data?.validation);
+      if (!validation.valid) {
+        toast({ title: 'Invalid Input', description: validation.message, variant: 'destructive' });
+        e.preventDefault();
+        return;
+      }
       onUpdate(coord, localValue);
       onFinishEdit(e.key);
       e.preventDefault();
@@ -94,6 +107,7 @@ export const Cell: React.FC<CellProps> = ({
   };
 
   const displayValue = formatCellValue(data?.value || '', data?.format);
+  const conditionalStyle = data ? evaluateConditionalFormatting(data) : {};
 
   const renderEditor = () => {
     if (data?.type === 'select') {
@@ -143,7 +157,7 @@ export const Cell: React.FC<CellProps> = ({
         isInRange && "bg-primary/10",
         isActive && "ring-2 ring-primary ring-inset z-10 bg-primary/5",
         isEditing && data?.type !== 'checkbox' && "shadow-lg z-20 bg-white",
-        data?.bold && "font-bold",
+        (data?.bold || conditionalStyle.bold) && "font-bold",
         data?.italic && "italic",
         data?.underline && "underline underline-offset-2",
         data?.strikethrough && "line-through",
@@ -152,8 +166,8 @@ export const Cell: React.FC<CellProps> = ({
         data?.align === 'left' && "justify-start"
       )}
       style={{ 
-        backgroundColor: data?.backgroundColor || undefined,
-        color: data?.textColor || undefined 
+        backgroundColor: conditionalStyle.backgroundColor || data?.backgroundColor || undefined,
+        color: conditionalStyle.textColor || data?.textColor || undefined 
       }}
       onMouseDown={handleMouseDown}
       onMouseEnter={() => onMouseEnter(coord)}

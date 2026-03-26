@@ -1,3 +1,20 @@
+export type ValidationRule = {
+  type: 'number' | 'text' | 'date';
+  min?: number;
+  max?: number;
+  allowEmpty?: boolean;
+};
+
+export type ConditionalFormatRule = {
+  operator: 'gt' | 'lt' | 'eq' | 'contains';
+  value: string;
+  style: {
+    backgroundColor?: string;
+    textColor?: string;
+    bold?: boolean;
+  };
+};
+
 export type CellData = {
   value: string;
   formula: string;
@@ -15,6 +32,8 @@ export type CellData = {
   colSpan?: number;
   hiddenByMerge?: string; // Coordinate of the primary cell in the merge
   comment?: string;
+  validation?: ValidationRule;
+  conditionalFormats?: ConditionalFormatRule[];
 };
 
 export type SpreadsheetData = Record<string, CellData>;
@@ -100,6 +119,58 @@ export function formatCellValue(value: string, format?: string): string {
     default:
       return value;
   }
+}
+
+export function evaluateConditionalFormatting(data: CellData): Partial<CellData> {
+  if (!data.conditionalFormats || data.conditionalFormats.length === 0) return {};
+  
+  const cellValue = data.value || '';
+  const numValue = parseFloat(cellValue);
+  
+  let effectiveStyle: Partial<CellData> = {};
+
+  for (const rule of data.conditionalFormats) {
+    let match = false;
+    switch (rule.operator) {
+      case 'contains':
+        if (cellValue.toLowerCase().includes(rule.value.toLowerCase())) match = true;
+        break;
+      case 'eq':
+        if (cellValue === rule.value) match = true;
+        break;
+      case 'gt':
+        if (!isNaN(numValue) && numValue > parseFloat(rule.value)) match = true;
+        break;
+      case 'lt':
+        if (!isNaN(numValue) && numValue < parseFloat(rule.value)) match = true;
+        break;
+    }
+
+    if (match) {
+      effectiveStyle = { ...effectiveStyle, ...rule.style };
+    }
+  }
+
+  return effectiveStyle;
+}
+
+export function validateValue(value: string, rule?: ValidationRule): { valid: boolean; message?: string } {
+  if (!rule) return { valid: true };
+  if (!value) return { valid: rule.allowEmpty ?? true };
+
+  switch (rule.type) {
+    case 'number':
+      const num = parseFloat(value);
+      if (isNaN(num)) return { valid: false, message: 'Value must be a number' };
+      if (rule.min !== undefined && num < rule.min) return { valid: false, message: `Value must be at least ${rule.min}` };
+      if (rule.max !== undefined && num > rule.max) return { valid: false, message: `Value must be at most ${rule.max}` };
+      break;
+    case 'date':
+      if (isNaN(Date.parse(value))) return { valid: false, message: 'Value must be a valid date' };
+      break;
+  }
+
+  return { valid: true };
 }
 
 function getCellValue(

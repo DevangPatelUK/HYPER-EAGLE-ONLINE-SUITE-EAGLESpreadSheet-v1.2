@@ -45,7 +45,9 @@ import {
   PanelTop,
   PanelLeft,
   Layout,
-  MessageSquarePlus
+  MessageSquarePlus,
+  Zap,
+  ShieldCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -65,7 +67,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent
 } from "@/components/ui/dropdown-menu";
-import { coordinateToIndex } from '@/app/lib/formula-engine';
+import { ValidationRule, ConditionalFormatRule } from '@/app/lib/formula-engine';
 
 interface ToolbarProps {
   onBold: () => void;
@@ -101,6 +103,8 @@ interface ToolbarProps {
   onExportCSV: () => void;
   onExportJSON: () => void;
   onAddComment: () => void;
+  onValidation: (rule: ValidationRule | undefined) => void;
+  onConditionalFormat: (rule: ConditionalFormatRule | undefined) => void;
   canUndo: boolean;
   canRedo: boolean;
   sheetName: string;
@@ -161,6 +165,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onExportCSV,
   onExportJSON,
   onAddComment,
+  onValidation,
+  onConditionalFormat,
   canUndo,
   canRedo,
   sheetName,
@@ -190,6 +196,25 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     if (val !== null) {
       onFilter(op, val);
     }
+  };
+
+  const promptValidation = (type: 'number') => {
+    const minStr = window.prompt("Minimum value (optional):");
+    const maxStr = window.prompt("Maximum value (optional):");
+    const min = minStr ? parseFloat(minStr) : undefined;
+    const max = maxStr ? parseFloat(maxStr) : undefined;
+    onValidation({ type, min, max, allowEmpty: true });
+  };
+
+  const promptConditionalFormatting = (op: 'lt' | 'gt' | 'eq') => {
+    const val = window.prompt(`Format cell if value ${op} than:`);
+    if (val === null) return;
+    
+    onConditionalFormat({
+      operator: op,
+      value: val,
+      style: { backgroundColor: '#fee2e2', textColor: '#dc2626', bold: true }
+    });
   };
 
   return (
@@ -285,6 +310,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 <DropdownMenuItem onClick={promptDropdownOptions}><ListFilter className="h-4 w-4 mr-2" />Dropdown List</DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger><Zap className="h-4 w-4 mr-2" />Conditional Formatting</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-[180px]">
+                <DropdownMenuItem onClick={() => promptConditionalFormatting('lt')}>Less Than...</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => promptConditionalFormatting('gt')}>Greater Than...</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => promptConditionalFormatting('eq')}>Equals...</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onConditionalFormat(undefined)}>Clear Formatting Rules</DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -306,6 +342,16 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               </DropdownMenuSubContent>
             </DropdownMenuSub>
             <DropdownMenuItem onClick={onClearFilters}><FilterX className="h-4 w-4 mr-2" />Clear Filters</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger><ShieldCheck className="h-4 w-4 mr-2" />Data Validation</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-[150px]">
+                <DropdownMenuItem onClick={() => promptValidation('number')}>Numbers Only...</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onValidation({ type: 'date', allowEmpty: true })}>Dates Only</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onValidation(undefined)}>Remove Validation</DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           </DropdownMenuContent>
         </DropdownMenu>
         
@@ -343,7 +389,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRedo} disabled={!canRedo}><Redo className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onUndo} disabled={!canRedo}><Redo className="h-4 w-4" /></Button>
               </TooltipTrigger>
               <TooltipContent>Redo</TooltipContent>
             </Tooltip>
