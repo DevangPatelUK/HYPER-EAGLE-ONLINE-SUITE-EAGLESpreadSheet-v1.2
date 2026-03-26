@@ -2,10 +2,19 @@
 'use client';
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  Firestore, 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager 
+} from 'firebase/firestore';
 import { getAuth, Auth } from 'firebase/auth';
 import { firebaseConfig } from './config';
 
+/**
+ * Initializes the Firebase app and services with offline persistence enabled.
+ */
 export function initializeFirebase(): {
   firebaseApp: FirebaseApp;
   firestore: Firestore;
@@ -13,7 +22,22 @@ export function initializeFirebase(): {
 } {
   const firebaseApp =
     getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-  const firestore = getFirestore(firebaseApp);
+  
+  // Enable offline persistence for Firestore using persistentLocalCache.
+  // This allows the app to function offline and sync changes when back online.
+  let firestore: Firestore;
+  try {
+    firestore = initializeFirestore(firebaseApp, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    });
+  } catch (e) {
+    // If Firestore was already initialized (e.g., during Hot Module Replacement),
+    // we retrieve the existing instance.
+    firestore = getFirestore(firebaseApp);
+  }
+  
   const auth = getAuth(firebaseApp);
 
   return { firebaseApp, firestore, auth };

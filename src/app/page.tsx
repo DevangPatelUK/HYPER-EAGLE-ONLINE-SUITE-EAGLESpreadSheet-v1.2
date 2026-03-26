@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -11,7 +12,7 @@ import { useSheetStore } from './lib/sheet-store';
 import { evaluateFormula, coordinateToIndex, PrintSettings } from './lib/formula-engine';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
-import { Plus, X, ChevronRight, LogIn, UserCircle, LogOut } from 'lucide-react';
+import { Plus, X, ChevronRight, LogIn, UserCircle, LogOut, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useAuth } from '@/firebase';
@@ -79,9 +80,30 @@ export default function SpreadsheetPage() {
   const [aiOpen, setAiOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
 
   const activeSheet = workbook[activeSheetId];
   const printSettings = activeSheet?.printSettings || DEFAULT_PRINT_SETTINGS;
+
+  // Connection Status Monitoring
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setIsOnline(navigator.onLine);
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast({ title: 'Online', description: 'Cloud sync restored.' });
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast({ title: 'Offline', description: 'Changes will be saved locally and synced later.', variant: 'destructive' });
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     if (!user || !db) return;
@@ -107,18 +129,28 @@ export default function SpreadsheetPage() {
     }
     setIsSyncing(true);
     const userDocRef = doc(db, 'workbooks', user.uid);
+    
+    // Firestore setDoc works offline if persistence is enabled. 
+    // The promise will resolve once the server acknowledges.
     setDoc(userDocRef, {
       userId: user.uid,
       name: workbook[activeSheetId]?.name || 'My Workbook',
       workbookData: workbook,
       updatedAt: serverTimestamp(),
     }, { merge: true })
-    .then(() => toast({ title: 'Saved to Cloud' }))
+    .then(() => {
+      if (isOnline) toast({ title: 'Saved to Cloud' });
+    })
     .catch(async (err) => {
       const permissionError = new FirestorePermissionError({ path: userDocRef.path, operation: 'update', requestResourceData: workbook });
       errorEmitter.emit('permission-error', permissionError);
     })
     .finally(() => setIsSyncing(false));
+
+    // Instant feedback for offline users
+    if (!isOnline) {
+      toast({ title: 'Saved Locally', description: 'Changes are queued for sync.' });
+    }
   };
 
   const handleSignIn = async () => {
@@ -209,7 +241,13 @@ export default function SpreadsheetPage() {
       <header role="banner" className="print:hidden">
         <div className="bg-primary px-4 py-1 flex items-center justify-between text-white text-[10px] font-bold uppercase tracking-tighter">
           <div className="flex items-center gap-2"><UserCircle className="h-3 w-3" />{user ? `Signed in as ${user.displayName || user.email}` : 'Guest Mode'}</div>
-          {user ? <button onClick={() => auth && signOut(auth)} className="hover:underline flex items-center gap-1"><LogOut className="h-3 w-3" /> Sign Out</button> : <button onClick={handleSignIn} className="hover:underline flex items-center gap-1"><LogIn className="h-3 w-3" /> Sign In</button>}
+          <div className="flex items-center gap-4">
+            <div className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-white/20 bg-white/10", !isOnline && "bg-destructive/20 border-destructive/40")}>
+              {isOnline ? <Wifi className="h-3 w-3 text-green-400" /> : <WifiOff className="h-3 w-3 text-destructive" />}
+              <span className={cn(isOnline ? "text-green-400" : "text-destructive")}>{isOnline ? 'Online' : 'Offline'}</span>
+            </div>
+            {user ? <button onClick={() => auth && signOut(auth)} className="hover:underline flex items-center gap-1"><LogOut className="h-3 w-3" /> Sign Out</button> : <button onClick={handleSignIn} className="hover:underline flex items-center gap-1"><LogIn className="h-3 w-3" /> Sign In</button>}
+          </div>
         </div>
         <Toolbar
           sheetName={activeSheet?.name || ''}
@@ -269,7 +307,6 @@ export default function SpreadsheetPage() {
             cols={cols} 
             activeSheet={{
               ...activeSheet,
-              // Temporarily hide headers if set in print settings during print
               frozenRows: 0, 
               frozenCols: 0,
             }}
@@ -287,7 +324,6 @@ export default function SpreadsheetPage() {
             onSelectCol={selectCol} 
           />
         )}
-        {/* Charts Layer - Hidden in print by default for better layout */}
         <div className="print:hidden">
           {activeSheet?.charts?.map((chart) => (
             <ChartOverlay 
@@ -319,7 +355,13 @@ export default function SpreadsheetPage() {
       </nav>
       <Toaster />
       <footer className="h-6 bg-primary text-[10px] text-white flex items-center px-4 justify-between uppercase tracking-widest font-bold print:hidden">
-        <div className="flex items-center gap-2"><span>SheetFlow v2.0 Security Enabled</span><ChevronRight className="h-3 w-3" /><span>{activeSheet?.name}</span>{isSyncing && <span className="animate-pulse ml-2">Syncing...</span>}</div>
+        <div className="flex items-center gap-2">
+          <span>SheetFlow v2.0</span>
+          <ChevronRight className="h-3 w-3" />
+          <span>{activeSheet?.name}</span>
+          {isSyncing && <span className="animate-pulse ml-2">Syncing...</span>}
+          {!isOnline && <span className="text-destructive-foreground bg-destructive/80 px-1.5 py-0.5 rounded ml-2">OFFLINE MODE</span>}
+        </div>
         <span>{selectionRange.length > 1 ? `${selectionRange.length} cells selected` : 'Ready'}</span>
       </footer>
 
