@@ -56,7 +56,9 @@ import {
   PieChart as PieChartIcon,
   AreaChart as AreaChartIcon,
   ScatterChart as ScatterChartIcon,
-  Printer
+  Printer,
+  HelpCircle,
+  BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -92,6 +94,7 @@ interface ToolbarProps {
   onSave: () => void;
   onDelete: () => void;
   onAI: () => void;
+  onHelp: () => void;
   onUndo: () => void;
   onRedo: () => void;
   onClear: () => void;
@@ -159,6 +162,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onSave,
   onDelete,
   onAI,
+  onHelp,
   onUndo,
   onRedo,
   onClear,
@@ -400,17 +404,35 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           </DropdownMenuContent>
         </DropdownMenu>
         
-        <DropdownMenu>
-          <DropdownMenuTrigger className="ml-auto text-accent flex items-center gap-1.5 hover:opacity-100 cursor-pointer transition-colors px-1 outline-none">
-            <Wand2 className="h-3 w-3" />
-            AI Toolbox <ChevronDown className="h-2 w-2" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-[200px]">
-            <DropdownMenuItem onClick={onAI}>
-              <Sparkles className="h-4 w-4 mr-2" /> AI Formula Assistant
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="ml-auto flex items-center gap-4">
+          <DropdownMenu>
+            <DropdownMenuTrigger className="text-accent flex items-center gap-1.5 hover:opacity-100 cursor-pointer transition-colors px-1 outline-none">
+              <Wand2 className="h-3 w-3" />
+              AI Toolbox <ChevronDown className="h-2 w-2" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[200px]">
+              <DropdownMenuItem onClick={onAI}>
+                <Sparkles className="h-4 w-4 mr-2" /> AI Formula Assistant
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger className="text-muted-foreground flex items-center gap-1.5 hover:text-primary cursor-pointer transition-colors px-1 outline-none">
+              <HelpCircle className="h-3 w-3" />
+              Help <ChevronDown className="h-2 w-2" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[220px]">
+              <DropdownMenuItem onClick={onHelp}>
+                <BookOpen className="h-4 w-4 mr-2" /> Documentation & Shortcuts
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1.5 text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
+                Version 2.0.4
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 p-2 px-4 overflow-x-auto scrollbar-hide">

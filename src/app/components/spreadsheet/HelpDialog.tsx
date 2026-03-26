@@ -1,0 +1,158 @@
+'use client';
+
+import React from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { HelpCircle, Calculator, Keyboard, Command } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+interface HelpDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export const HelpDialog: React.FC<HelpDialogProps> = ({ open, onOpenChange }) => {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px] h-[80vh] flex flex-col p-0 overflow-hidden">
+        <DialogHeader className="p-6 pb-2">
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            <HelpCircle className="h-6 w-6 text-primary" />
+            Spreadsheet Help Guide
+          </DialogTitle>
+          <DialogDescription>
+            Learn about supported formulas and keyboard shortcuts to boost your productivity.
+          </DialogDescription>
+        </DialogHeader>
+
+        <Tabs defaultValue="formulas" className="flex-1 flex flex-col overflow-hidden px-6 pb-6">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="formulas" className="gap-2">
+              <Calculator className="h-4 w-4" /> Formulas
+            </TabsTrigger>
+            <TabsTrigger value="shortcuts" className="gap-2">
+              <Keyboard className="h-4 w-4" /> Shortcuts
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="formulas" className="flex-1 overflow-hidden mt-0">
+            <ScrollArea className="h-full pr-4">
+              <div className="space-y-6">
+                <section>
+                  <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-3">Mathematical Functions</h3>
+                  <div className="grid gap-4">
+                    <FormulaItem 
+                      name="SUM" 
+                      usage="=SUM(A1:B10)" 
+                      description="Adds all the numbers in a range of cells." 
+                    />
+                    <FormulaItem 
+                      name="AVERAGE" 
+                      usage="=AVERAGE(A1:A5)" 
+                      description="Returns the average (arithmetic mean) of the arguments." 
+                    />
+                    <FormulaItem 
+                      name="MIN / MAX" 
+                      usage="=MIN(C1:C20)" 
+                      description="Returns the smallest or largest value in a set of values." 
+                    />
+                    <FormulaItem 
+                      name="ROUND" 
+                      usage="=ROUND(A1, 2)" 
+                      description="Rounds a number to a specified number of digits." 
+                    />
+                  </div>
+                </section>
+
+                <section>
+                  <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-3">Logical & Statistical</h3>
+                  <div className="grid gap-4">
+                    <FormulaItem 
+                      name="IF" 
+                      usage='=IF(A1>10, "High", "Low")' 
+                      description="Returns one value if a condition you specify evaluates to TRUE and another value if it evaluates to FALSE." 
+                    />
+                    <FormulaItem 
+                      name="COUNT" 
+                      usage="=COUNT(A1:Z1)" 
+                      description="Counts the number of cells that contain numbers." 
+                    />
+                  </div>
+                </section>
+                
+                <div className="p-4 bg-muted rounded-lg text-xs text-muted-foreground border border-border">
+                  <strong>Pro Tip:</strong> All formulas must start with an equals sign (=). You can use cell references like A1 or ranges like A1:B10.
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="shortcuts" className="flex-1 overflow-hidden mt-0">
+            <ScrollArea className="h-full pr-4">
+              <div className="space-y-6">
+                <section>
+                  <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-3">Navigation & Selection</h3>
+                  <div className="grid gap-3">
+                    <ShortcutItem keys={['Arrow Keys']} description="Move active cell selection" />
+                    <ShortcutItem keys={['Tab']} description="Move focus to the next cell (right)" />
+                    <ShortcutItem keys={['Enter']} description="Move focus to the next cell (down)" />
+                    <ShortcutItem keys={['Shift', 'Arrows']} description="Expand selection range" />
+                    <ShortcutItem keys={['Ctrl', 'Arrows']} description="Jump to the grid boundaries" />
+                  </div>
+                </section>
+
+                <section>
+                  <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-3">Clipboard & Actions</h3>
+                  <div className="grid gap-3">
+                    <ShortcutItem keys={['Ctrl', 'C']} description="Copy selection to clipboard" />
+                    <ShortcutItem keys={['Ctrl', 'V']} description="Paste selection from clipboard" />
+                    <ShortcutItem keys={['Ctrl', 'Z']} description="Undo last action" />
+                    <ShortcutItem keys={['Ctrl', 'Y']} description="Redo last action" />
+                    <ShortcutItem keys={['Backspace / Del']} description="Clear content of selected cells" />
+                  </div>
+                </section>
+
+                <section>
+                  <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-3">Structure</h3>
+                  <div className="grid gap-3">
+                    <ShortcutItem keys={['Ctrl', 'Shift', '+']} description="Insert a new row below" />
+                    <ShortcutItem keys={['Ctrl', '-']} description="Delete the currently selected row" />
+                  </div>
+                </section>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const FormulaItem = ({ name, usage, description }: { name: string; usage: string; description: string }) => (
+  <div className="p-3 border border-border rounded-lg bg-secondary/10">
+    <div className="flex items-center justify-between mb-1">
+      <span className="font-mono font-bold text-primary">{name}</span>
+      <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{usage}</code>
+    </div>
+    <p className="text-xs text-muted-foreground">{description}</p>
+  </div>
+);
+
+const ShortcutItem = ({ keys, description }: { keys: string[]; description: string }) => (
+  <div className="flex items-center justify-between p-2 border-b border-border/50 last:border-0">
+    <span className="text-xs text-muted-foreground">{description}</span>
+    <div className="flex gap-1">
+      {keys.map((key) => (
+        <kbd key={key} className="flex items-center justify-center px-2 py-1 min-w-[24px] h-6 text-[10px] font-bold bg-muted border border-border shadow-sm rounded-md">
+          {key}
+        </kbd>
+      ))}
+    </div>
+  </div>
+);

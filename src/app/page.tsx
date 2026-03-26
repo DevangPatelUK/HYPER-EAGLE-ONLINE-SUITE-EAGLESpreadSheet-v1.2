@@ -5,6 +5,7 @@ import { Toolbar } from './components/spreadsheet/Toolbar';
 import { FormulaBar } from './components/spreadsheet/FormulaBar';
 import { Grid } from './components/spreadsheet/Grid';
 import { AIAssistant } from './components/spreadsheet/AIAssistant';
+import { HelpDialog } from './components/spreadsheet/HelpDialog';
 import { ChartOverlay } from './components/spreadsheet/ChartOverlay';
 import { PrintSettingsDialog } from './components/spreadsheet/PrintSettings';
 import { useSheetStore } from './lib/sheet-store';
@@ -79,6 +80,7 @@ export default function SpreadsheetPage() {
   } = useSheetStore(rows, cols);
 
   const [aiOpen, setAiOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
@@ -281,6 +283,7 @@ export default function SpreadsheetPage() {
           onSave={handleSave}
           onDelete={() => removeSheet(activeSheetId)}
           onAI={() => setAiOpen(true)}
+          onHelp={() => setHelpOpen(true)}
           onUndo={undo}
           onRedo={redo}
           onClear={() => selectionRange.forEach(c => updateCell(c, { value: '', formula: '' }))}
@@ -392,6 +395,7 @@ export default function SpreadsheetPage() {
       </footer>
 
       <AIAssistant open={aiOpen} onOpenChange={setAiOpen} selectedRange={selectedCell} selectedRangeData={[]} onApplyFormula={(f) => selectedCell && handleUpdate(selectedCell, f)} />
+      <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
       <PrintSettingsDialog 
         open={printOpen} 
         onOpenChange={setPrintOpen} 
