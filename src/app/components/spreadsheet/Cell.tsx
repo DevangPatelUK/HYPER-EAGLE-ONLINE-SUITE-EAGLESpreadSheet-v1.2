@@ -96,11 +96,17 @@ export const Cell: React.FC<CellProps> = ({
         isActive && "ring-2 ring-primary ring-inset z-10 bg-primary/5",
         isEditing && "shadow-lg z-20 bg-white",
         data?.bold && "font-bold",
+        data?.italic && "italic",
+        data?.underline && "underline underline-offset-2",
+        data?.strikethrough && "line-through",
         data?.align === 'center' && "justify-center",
         data?.align === 'right' && "justify-end",
         data?.align === 'left' && "justify-start"
       )}
-      style={{ backgroundColor: data?.backgroundColor || undefined }}
+      style={{ 
+        backgroundColor: data?.backgroundColor || undefined,
+        color: data?.textColor || undefined 
+      }}
       onMouseDown={handleMouseDown}
       onMouseEnter={() => onMouseEnter(coord)}
       onDoubleClick={() => onDoubleClick(coord)}

@@ -2,8 +2,12 @@ export type CellData = {
   value: string;
   formula: string;
   bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strikethrough?: boolean;
   align?: 'left' | 'center' | 'right';
   backgroundColor?: string;
+  textColor?: string;
   format?: 'number' | 'currency' | 'percent' | 'text';
 };
 
@@ -116,7 +120,6 @@ export function evaluateFormula(
   const expression = formula.slice(1).trim().toUpperCase();
   
   try {
-    // 1. Handle Functions with Ranges (SUM, AVG, MIN, MAX, COUNT)
     const rangeFuncRegex = /^(SUM|AVG|MIN|MAX|COUNT)\(([^)]+)\)$/;
     const rangeMatch = expression.match(rangeFuncRegex);
     
@@ -153,7 +156,6 @@ export function evaluateFormula(
       }
     }
 
-    // 2. Handle ROUND Function
     if (expression.startsWith('ROUND(')) {
       const argsStr = expression.slice(6, -1);
       const args = argsStr.split(',');
@@ -166,7 +168,6 @@ export function evaluateFormula(
       return (Math.round(valToRound * Math.pow(10, digits)) / Math.pow(10, digits)).toString();
     }
 
-    // 3. Handle IF Function
     if (expression.startsWith('IF(')) {
       const argsStr = expression.slice(3, -1);
       const args = argsStr.split(',').map(s => s.trim());
@@ -181,7 +182,6 @@ export function evaluateFormula(
         return isNaN(parseFloat(val)) ? `"${val}"` : val;
       });
 
-      // eslint-disable-next-line no-eval
       const result = eval(processedCondition);
       const chosenBranch = result ? trueVal : falseVal;
 
@@ -191,7 +191,6 @@ export function evaluateFormula(
       return chosenBranch.replace(/"/g, '');
     }
 
-    // 4. Basic Arithmetic and individual cell references
     let processedExpr = expression.replace(/([A-Z0-9_]+!)?[A-Z]+\d+/g, (match) => {
       const val = getCellValue(match, workbook, currentSheetId, visited);
       if (val.startsWith('#') && val !== '#CIRCULAR!') throw new Error(val);
@@ -204,7 +203,6 @@ export function evaluateFormula(
     }
 
     if (/^[0-9+\-*/().\s]+$/.test(processedExpr)) {
-      // eslint-disable-next-line no-eval
       const result = eval(processedExpr);
       return isFinite(result) ? result.toString() : '#VALUE!';
     }

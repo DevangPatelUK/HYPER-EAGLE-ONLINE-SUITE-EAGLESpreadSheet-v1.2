@@ -16,7 +16,6 @@ export function useSheetStore(rows: number, cols: number) {
   });
   const [activeSheetId, setActiveSheetId] = useState('sheet-1');
   
-  // Undo/Redo History
   const [past, setPast] = useState<WorkbookData[]>([]);
   const [future, setFuture] = useState<WorkbookData[]>([]);
 
@@ -107,6 +106,117 @@ export function useSheetStore(rows: number, cols: number) {
     pushToHistory(finalWb);
   }, [activeSheetId, workbook, recalculateAll, pushToHistory]);
 
+  const insertRow = useCallback((afterRowIndex: number) => {
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    if (!sheet) return;
+    const newData: SpreadsheetData = {};
+    Object.entries(sheet.data).forEach(([coord, cell]) => {
+      const { row, col } = coordinateToIndex(coord)!;
+      if (row >= afterRowIndex) {
+        newData[indexToCoordinate(row + 1, col)] = cell;
+      } else {
+        newData[coord] = cell;
+      }
+    });
+    newWb[activeSheetId] = { ...sheet, data: newData };
+    pushToHistory(recalculateAll(newWb));
+  }, [activeSheetId, workbook, recalculateAll, pushToHistory]);
+
+  const deleteRow = useCallback((rowIndex: number) => {
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    if (!sheet) return;
+    const newData: SpreadsheetData = {};
+    Object.entries(sheet.data).forEach(([coord, cell]) => {
+      const { row, col } = coordinateToIndex(coord)!;
+      if (row === rowIndex) return;
+      if (row > rowIndex) {
+        newData[indexToCoordinate(row - 1, col)] = cell;
+      } else {
+        newData[coord] = cell;
+      }
+    });
+    newWb[activeSheetId] = { ...sheet, data: newData };
+    pushToHistory(recalculateAll(newWb));
+  }, [activeSheetId, workbook, recalculateAll, pushToHistory]);
+
+  const insertCol = useCallback((afterColIndex: number) => {
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    if (!sheet) return;
+    const newData: SpreadsheetData = {};
+    Object.entries(sheet.data).forEach(([coord, cell]) => {
+      const { row, col } = coordinateToIndex(coord)!;
+      if (col >= afterColIndex) {
+        newData[indexToCoordinate(row, col + 1)] = cell;
+      } else {
+        newData[coord] = cell;
+      }
+    });
+    newWb[activeSheetId] = { ...sheet, data: newData };
+    pushToHistory(recalculateAll(newWb));
+  }, [activeSheetId, workbook, recalculateAll, pushToHistory]);
+
+  const deleteCol = useCallback((colIndex: number) => {
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    if (!sheet) return;
+    const newData: SpreadsheetData = {};
+    Object.entries(sheet.data).forEach(([coord, cell]) => {
+      const { row, col } = coordinateToIndex(coord)!;
+      if (col === colIndex) return;
+      if (col > colIndex) {
+        newData[indexToCoordinate(row, col - 1)] = cell;
+      } else {
+        newData[coord] = cell;
+      }
+    });
+    newWb[activeSheetId] = { ...sheet, data: newData };
+    pushToHistory(recalculateAll(newWb));
+  }, [activeSheetId, workbook, recalculateAll, pushToHistory]);
+
+  const sortRange = useCallback((direction: 'asc' | 'desc') => {
+    if (selectionRange.length < 2) return;
+    const start = coordinateToIndex(selectionRange[0])!;
+    const end = coordinateToIndex(selectionRange[selectionRange.length - 1])!;
+    const minRow = Math.min(start.row, end.row);
+    const maxRow = Math.max(start.row, end.row);
+    const minCol = Math.min(start.col, end.col);
+    const maxCol = Math.max(start.col, end.col);
+
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    const newData = { ...sheet.data };
+
+    const rowsToSort: any[][] = [];
+    for (let r = minRow; r <= maxRow; r++) {
+      const rowData = [];
+      for (let c = minCol; c <= maxCol; c++) {
+        rowData.push(newData[indexToCoordinate(r, c)] || { value: '', formula: '' });
+      }
+      rowsToSort.push(rowData);
+    }
+
+    rowsToSort.sort((a, b) => {
+      const valA = a[0].value || '';
+      const valB = b[0].value || '';
+      if (!isNaN(parseFloat(valA)) && !isNaN(parseFloat(valB))) {
+        return direction === 'asc' ? parseFloat(valA) - parseFloat(valB) : parseFloat(valB) - parseFloat(valA);
+      }
+      return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    });
+
+    rowsToSort.forEach((rowData, rIdx) => {
+      rowData.forEach((cellData, cIdx) => {
+        newData[indexToCoordinate(minRow + rIdx, minCol + cIdx)] = cellData;
+      });
+    });
+
+    newWb[activeSheetId] = { ...sheet, data: newData };
+    pushToHistory(recalculateAll(newWb));
+  }, [selectionRange, activeSheetId, workbook, recalculateAll, pushToHistory]);
+
   const addSheet = () => {
     const id = `sheet-${Date.now()}`;
     const name = `Sheet${Object.keys(workbook).length + 1}`;
@@ -169,13 +279,9 @@ export function useSheetStore(rows: number, cols: number) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (editingCell) return;
 
-    // Undo/Redo Shortcuts
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
-      if (e.shiftKey) {
-        redo();
-      } else {
-        undo();
-      }
+      if (e.shiftKey) redo();
+      else undo();
       e.preventDefault();
       return;
     }
@@ -229,6 +335,11 @@ export function useSheetStore(rows: number, cols: number) {
     editingValue,
     setEditingValue,
     updateCell,
+    insertRow,
+    deleteRow,
+    insertCol,
+    deleteCol,
+    sortRange,
     handleMouseDown,
     handleMouseEnter,
     handleMouseUp,
