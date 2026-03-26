@@ -14,11 +14,9 @@ export function useSheetStore(initialData: SpreadsheetData = {}) {
       const newData = { ...prev };
       const current = newData[coord] || { value: '', formula: '' };
       
-      // Determine what the new formula and value should be
       let finalFormula = updates.formula !== undefined ? updates.formula : current.formula;
       let finalValue = updates.value !== undefined ? updates.value : current.value;
 
-      // Update the target cell
       newData[coord] = { 
         ...current, 
         ...updates,
@@ -26,8 +24,6 @@ export function useSheetStore(initialData: SpreadsheetData = {}) {
         value: finalValue
       };
 
-      // Re-evaluate all formulas to ensure dependencies are updated
-      // We do this in one pass to minimize state transitions
       const updatedData: SpreadsheetData = { ...newData };
       Object.keys(updatedData).forEach((key) => {
         const cell = updatedData[key];
@@ -44,8 +40,11 @@ export function useSheetStore(initialData: SpreadsheetData = {}) {
   }, []);
 
   const handleCellSelect = (coord: string) => {
-    setSelectedCell(coord);
-    if (editingCell !== coord) {
+    if (selectedCell === coord) {
+      // Single tap on already selected cell starts editing
+      setEditingCell(coord);
+    } else {
+      setSelectedCell(coord);
       setEditingCell(null);
     }
   };
@@ -55,7 +54,10 @@ export function useSheetStore(initialData: SpreadsheetData = {}) {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, rows: number, cols: number) => {
-    if (!selectedCell || editingCell) return;
+    if (!selectedCell) return;
+
+    // If editing, only allow Tab and Enter to navigate (they write the value in Cell.tsx first)
+    if (editingCell && e.key !== 'Tab' && e.key !== 'Enter') return;
 
     const match = selectedCell.match(/^([A-Z]+)(\d+)$/);
     if (!match) return;
@@ -68,36 +70,51 @@ export function useSheetStore(initialData: SpreadsheetData = {}) {
 
     switch (e.key) {
       case 'ArrowUp':
-        if (row > 0) handleCellSelect(indexToCoordinate(row - 1, col));
+        if (row > 0) setSelectedCell(indexToCoordinate(row - 1, col));
         e.preventDefault();
         break;
       case 'ArrowDown':
-        if (row < rows - 1) handleCellSelect(indexToCoordinate(row + 1, col));
+        if (row < rows - 1) setSelectedCell(indexToCoordinate(row + 1, col));
         e.preventDefault();
         break;
       case 'ArrowLeft':
-        if (col > 0) handleCellSelect(indexToCoordinate(row, col - 1));
+        if (col > 0) setSelectedCell(indexToCoordinate(row, col - 1));
         e.preventDefault();
         break;
       case 'ArrowRight':
-        if (col < cols - 1) handleCellSelect(indexToCoordinate(row, col + 1));
+        if (col < cols - 1) setSelectedCell(indexToCoordinate(row, col + 1));
         e.preventDefault();
         break;
       case 'Enter':
-        setEditingCell(selectedCell);
+        if (editingCell) {
+          // If we were editing, Enter moves down
+          if (row < rows - 1) setSelectedCell(indexToCoordinate(row + 1, col));
+          setEditingCell(null);
+        } else {
+          setEditingCell(selectedCell);
+        }
         e.preventDefault();
         break;
       case 'Tab':
-        if (col < cols - 1) handleCellSelect(indexToCoordinate(row, col + 1));
+        // Tab moves right
+        if (col < cols - 1) {
+          setSelectedCell(indexToCoordinate(row, col + 1));
+        } else if (row < rows - 1) {
+          // Wrap to next row
+          setSelectedCell(indexToCoordinate(row + 1, 0));
+        }
+        setEditingCell(null);
         e.preventDefault();
         break;
       case 'Backspace':
       case 'Delete':
-        updateCell(selectedCell, { value: '', formula: '' });
+        if (!editingCell) {
+          updateCell(selectedCell, { value: '', formula: '' });
+        }
         break;
       default:
-        // Start typing directly to enter edit mode (standard spreadsheet behavior)
-        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // Start typing directly to enter edit mode
+        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey && !editingCell) {
           setEditingCell(selectedCell);
         }
         break;

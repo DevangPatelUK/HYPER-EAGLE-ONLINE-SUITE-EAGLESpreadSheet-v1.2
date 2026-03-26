@@ -28,14 +28,24 @@ export const Cell: React.FC<CellProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [localValue, setLocalValue] = useState(data?.formula || data?.value || '');
 
-  // Reset local value when we start editing or when data externally changes
+  // Keep local value in sync with external data when not editing
+  useEffect(() => {
+    if (!isEditing) {
+      setLocalValue(data?.formula || data?.value || '');
+    }
+  }, [data?.formula, data?.value, isEditing]);
+
+  // Focus and select text when editing starts
   useEffect(() => {
     if (isEditing) {
-      setLocalValue(data?.formula || data?.value || '');
-      // Focus the input
-      setTimeout(() => inputRef.current?.focus(), 0);
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+        }
+      }, 0);
     }
-  }, [isEditing, data?.formula, data?.value]);
+  }, [isEditing]);
 
   const handleBlur = () => {
     if (isEditing) {
@@ -45,19 +55,21 @@ export const Cell: React.FC<CellProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' || e.key === 'Tab') {
       onUpdate(coord, localValue);
       onFinishEdit();
+      // We don't preventDefault here so the global handler can pick up the navigation
     } else if (e.key === 'Escape') {
       setLocalValue(data?.formula || data?.value || '');
       onFinishEdit();
+      e.preventDefault();
     }
   };
 
   return (
     <div
       className={cn(
-        "relative h-8 border-r border-b border-border min-w-[100px] flex items-center px-2 text-sm overflow-hidden select-none cursor-cell transition-colors",
+        "relative h-8 border-r border-b border-border min-w-[120px] flex items-center px-2 text-sm overflow-hidden select-none cursor-cell transition-colors",
         isSelected && "cell-selected bg-primary/5",
         isEditing && "cell-editing shadow-lg",
         data?.bold && "font-bold",
@@ -70,7 +82,7 @@ export const Cell: React.FC<CellProps> = ({
       {isEditing ? (
         <input
           ref={inputRef}
-          className="w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary"
+          className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary z-30"
           value={localValue}
           onChange={(e) => setLocalValue(e.target.value)}
           onBlur={handleBlur}
