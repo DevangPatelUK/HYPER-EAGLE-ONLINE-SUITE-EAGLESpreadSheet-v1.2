@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -67,7 +66,6 @@ export default function SpreadsheetPage() {
         const cloudData = snapshot.data();
         if (cloudData.workbookData) {
           // Only update if we aren't currently editing to avoid jumping
-          // This is a simple conflict resolution for MVP
           setWorkbook(cloudData.workbookData);
         }
       }
@@ -186,25 +184,6 @@ export default function SpreadsheetPage() {
       </header>
 
       <main className="flex-1 overflow-hidden flex flex-col relative border-t border-border" role="main">
-        {!user && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-            <div className="bg-white p-8 rounded-xl shadow-2xl border border-border text-center max-w-sm">
-              <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <LogIn className="h-8 w-8 text-primary" />
-              </div>
-              <h2 className="text-xl font-bold mb-2">Secure Cloud Sync</h2>
-              <p className="text-muted-foreground text-sm mb-6">
-                Sign in to save your spreadsheets to the cloud and access them from anywhere.
-              </p>
-              <Button onClick={handleSignIn} className="w-full">
-                Sign In with Google
-              </Button>
-              <Button variant="ghost" onClick={() => toast({ title: 'Guest Mode', description: 'Changes will not be saved.' })} className="w-full mt-2 text-xs">
-                Continue as Guest
-              </Button>
-            </div>
-          </div>
-        )}
         <Grid
           rows={rows}
           cols={cols}
