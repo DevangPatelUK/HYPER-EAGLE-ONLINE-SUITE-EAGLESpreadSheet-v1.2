@@ -14,6 +14,7 @@ export type CellData = {
   rowSpan?: number;
   colSpan?: number;
   hiddenByMerge?: string; // Coordinate of the primary cell in the merge
+  comment?: string;
 };
 
 export type SpreadsheetData = Record<string, CellData>;

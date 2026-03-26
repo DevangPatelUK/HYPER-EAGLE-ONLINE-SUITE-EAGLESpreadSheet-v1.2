@@ -120,6 +120,15 @@ export default function SpreadsheetPage() {
     }
   };
 
+  const handleAddComment = () => {
+    if (!selectedCell) return;
+    const currentComment = data[selectedCell]?.comment || '';
+    const newComment = window.prompt('Enter comment/note:', currentComment);
+    if (newComment !== null) {
+      updateCell(selectedCell, { comment: newComment || undefined });
+    }
+  };
+
   const activeSheet = workbook[activeSheetId];
 
   const handleHideRows = useCallback(() => {
@@ -180,6 +189,7 @@ export default function SpreadsheetPage() {
           onClearFilters={clearFilters}
           onMerge={mergeSelection}
           onUnmerge={unmergeSelection}
+          onAddComment={handleAddComment}
           onImportCSV={() => {}} onExportCSV={() => {}} onExportJSON={() => {}}
           canUndo={canUndo} canRedo={canRedo}
         />

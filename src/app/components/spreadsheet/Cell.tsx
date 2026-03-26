@@ -4,6 +4,12 @@ import React, { useRef, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { CellData, formatCellValue } from '@/app/lib/formula-engine';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface CellProps {
   coord: string;
@@ -126,12 +132,12 @@ export const Cell: React.FC<CellProps> = ({
     );
   };
 
-  return (
+  const cellContent = (
     <div
       role="gridcell"
       aria-selected={isActive || isInRange}
       aria-readonly={!isEditing}
-      aria-label={`Cell ${coord}, value: ${displayValue}`}
+      aria-label={`Cell ${coord}, value: ${displayValue}${data?.comment ? `, comment: ${data.comment}` : ''}`}
       className={cn(
         "relative h-full border-r border-b border-border min-w-[120px] flex items-center px-2 text-sm overflow-hidden select-none cursor-cell transition-colors",
         isInRange && "bg-primary/10",
@@ -153,6 +159,11 @@ export const Cell: React.FC<CellProps> = ({
       onMouseEnter={() => onMouseEnter(coord)}
       onDoubleClick={() => onDoubleClick(coord)}
     >
+      {/* Comment Indicator */}
+      {data?.comment && (
+        <div className="absolute top-0 right-0 w-0 h-0 border-t-[6px] border-t-accent border-l-[6px] border-l-transparent z-10" />
+      )}
+
       {isEditing && data?.type !== 'checkbox' ? (
         renderEditor()
       ) : data?.type === 'checkbox' ? (
@@ -170,4 +181,22 @@ export const Cell: React.FC<CellProps> = ({
       )}
     </div>
   );
+
+  if (data?.comment) {
+    return (
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {cellContent}
+          </TooltipTrigger>
+          <TooltipContent className="bg-popover text-popover-foreground border border-border shadow-md p-2 text-xs max-w-[200px] break-words">
+            <p className="font-semibold mb-1 text-[10px] text-muted-foreground uppercase tracking-wider">Note</p>
+            {data.comment}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return cellContent;
 };

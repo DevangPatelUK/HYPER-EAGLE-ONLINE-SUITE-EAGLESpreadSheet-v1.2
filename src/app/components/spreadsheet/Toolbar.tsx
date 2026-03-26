@@ -44,7 +44,8 @@ import {
   FilterX,
   PanelTop,
   PanelLeft,
-  Layout
+  Layout,
+  MessageSquarePlus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -99,6 +100,7 @@ interface ToolbarProps {
   onImportCSV: (file: File) => void;
   onExportCSV: () => void;
   onExportJSON: () => void;
+  onAddComment: () => void;
   canUndo: boolean;
   canRedo: boolean;
   sheetName: string;
@@ -158,6 +160,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onImportCSV,
   onExportCSV,
   onExportJSON,
+  onAddComment,
   canUndo,
   canRedo,
   sheetName,
@@ -228,6 +231,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onMerge}><Combine className="h-4 w-4 mr-2" />Merge Selection</DropdownMenuItem>
             <DropdownMenuItem onClick={onUnmerge}><Split className="h-4 w-4 mr-2" />Unmerge Selection</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onAddComment}><MessageSquarePlus className="h-4 w-4 mr-2" />Add Comment</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -395,6 +400,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onUnmerge}><Split className="h-4 w-4" /></Button>
               </TooltipTrigger>
               <TooltipContent>Unmerge Cells</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onAddComment}><MessageSquarePlus className="h-4 w-4" /></Button>
+              </TooltipTrigger>
+              <TooltipContent>Add Comment</TooltipContent>
             </Tooltip>
           </div>
         </TooltipProvider>
