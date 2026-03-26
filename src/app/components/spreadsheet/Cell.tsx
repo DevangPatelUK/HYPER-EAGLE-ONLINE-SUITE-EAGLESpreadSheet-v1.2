@@ -10,11 +10,12 @@ interface CellProps {
   isActive: boolean;
   isInRange: boolean;
   isEditing: boolean;
+  initialValue?: string | null;
   onMouseDown: (coord: string, shiftKey: boolean) => void;
   onMouseEnter: (coord: string) => void;
   onDoubleClick: (coord: string) => void;
   onUpdate: (coord: string, value: string) => void;
-  onFinishEdit: () => void;
+  onFinishEdit: (nextKey?: string) => void;
 }
 
 export const Cell: React.FC<CellProps> = ({
@@ -23,6 +24,7 @@ export const Cell: React.FC<CellProps> = ({
   isActive,
   isInRange,
   isEditing,
+  initialValue,
   onMouseDown,
   onMouseEnter,
   onDoubleClick,
@@ -35,19 +37,29 @@ export const Cell: React.FC<CellProps> = ({
   useEffect(() => {
     if (!isEditing) {
       setLocalValue(data?.formula || data?.value || '');
+    } else {
+      // If we started editing with a key press, use that as the starting value
+      if (initialValue !== null && initialValue !== undefined) {
+        setLocalValue(initialValue);
+      } else {
+        setLocalValue(data?.formula || data?.value || '');
+      }
     }
-  }, [data?.formula, data?.value, isEditing]);
+  }, [data?.formula, data?.value, isEditing, initialValue]);
 
   useEffect(() => {
     if (isEditing) {
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
-          inputRef.current.select();
+          // Only select text if we DIDN'T start with a specific character
+          if (initialValue === null || initialValue === undefined) {
+            inputRef.current.select();
+          }
         }
       }, 0);
     }
-  }, [isEditing]);
+  }, [isEditing, initialValue]);
 
   const handleBlur = () => {
     if (isEditing) {
@@ -59,7 +71,8 @@ export const Cell: React.FC<CellProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === 'Tab') {
       onUpdate(coord, localValue);
-      onFinishEdit();
+      onFinishEdit(e.key);
+      e.preventDefault();
     } else if (e.key === 'Escape') {
       setLocalValue(data?.formula || data?.value || '');
       onFinishEdit();
@@ -100,8 +113,6 @@ export const Cell: React.FC<CellProps> = ({
           {data?.value || ''}
         </span>
       )}
-      {/* Selection Border logic could be added here for the range corners, 
-          but for now simple highlight is effective */}
     </div>
   );
 };

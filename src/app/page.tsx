@@ -20,6 +20,8 @@ export default function SpreadsheetPage() {
     selectionRange,
     editingCell,
     setEditingCell,
+    editingValue,
+    setEditingValue,
     updateCell,
     handleMouseDown,
     handleMouseEnter,
@@ -30,6 +32,7 @@ export default function SpreadsheetPage() {
     setSheetName,
     selectRow,
     selectCol,
+    moveSelection,
   } = useSheetStore(rows, cols);
 
   const [aiOpen, setAiOpen] = useState(false);
@@ -90,6 +93,18 @@ export default function SpreadsheetPage() {
     }
   };
 
+  const handleFinishEdit = (nextKey?: string) => {
+    setEditingCell(null);
+    setEditingValue(null);
+    
+    // Handle navigation after editing
+    if (nextKey === 'Enter') {
+      moveSelection('down');
+    } else if (nextKey === 'Tab') {
+      moveSelection('right');
+    }
+  };
+
   const handleApplyFormula = (formula: string) => {
     if (selectedCell) {
       handleUpdate(selectedCell, formula);
@@ -103,6 +118,8 @@ export default function SpreadsheetPage() {
     if (selectionRange.length === 0) return [];
     
     const indices = selectionRange.map(c => coordinateToIndex(c)).filter(Boolean) as {row: number, col: number}[];
+    if (indices.length === 0) return [];
+
     const minRow = Math.min(...indices.map(i => i.row));
     const maxRow = Math.max(...indices.map(i => i.row));
     const minCol = Math.min(...indices.map(i => i.col));
@@ -136,7 +153,7 @@ export default function SpreadsheetPage() {
   return (
     <div 
       className="flex flex-col h-screen overflow-hidden bg-background outline-none"
-      onKeyDown={(e) => handleKeyDown(e, rows, cols)}
+      onKeyDown={handleKeyDown}
       tabIndex={0}
     >
       <Toolbar
@@ -164,12 +181,13 @@ export default function SpreadsheetPage() {
           selectedCell={selectedCell}
           selectionRange={selectionRange}
           editingCell={editingCell}
+          editingValue={editingValue}
           onMouseDown={handleMouseDown}
           onMouseEnter={handleMouseEnter}
           onMouseUp={handleMouseUp}
           onDoubleClick={handleCellDoubleClick}
           onUpdate={handleUpdate}
-          onFinishEdit={() => setEditingCell(null)}
+          onFinishEdit={handleFinishEdit}
           onSelectRow={selectRow}
           onSelectCol={selectCol}
         />

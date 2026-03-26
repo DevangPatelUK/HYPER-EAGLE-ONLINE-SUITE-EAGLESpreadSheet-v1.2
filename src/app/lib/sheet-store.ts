@@ -9,6 +9,7 @@ export function useSheetStore(rows: number, cols: number, initialData: Spreadshe
   const [selectionFocus, setSelectionFocus] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [editingCell, setEditingCell] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState<string | null>(null);
   const [sheetName, setSheetName] = useState('Untitled Sheet');
 
   // The "Active" cell is the one where the selection started
@@ -71,16 +72,25 @@ export function useSheetStore(rows: number, cols: number, initialData: Spreadshe
     
     if (shiftKey && selectionAnchor) {
       setSelectionFocus(coord);
+      setIsDragging(true);
     } else {
-      setSelectionAnchor(coord);
-      setSelectionFocus(coord);
+      if (selectedCell === coord) {
+        // Second click on the same cell: Enter edit mode
+        setEditingCell(coord);
+        setEditingValue(null);
+        setIsDragging(false);
+      } else {
+        setSelectionAnchor(coord);
+        setSelectionFocus(coord);
+        setEditingCell(null);
+        setEditingValue(null);
+        setIsDragging(true);
+      }
     }
-    setIsDragging(true);
-    setEditingCell(null);
   };
 
   const handleMouseEnter = (coord: string) => {
-    if (isDragging) {
+    if (isDragging && !editingCell) {
       setSelectionFocus(coord);
     }
   };
@@ -89,7 +99,6 @@ export function useSheetStore(rows: number, cols: number, initialData: Spreadshe
     setIsDragging(false);
   }, []);
 
-  // Use a global listener to ensure dragging stops even if mouse is released outside the grid
   useEffect(() => {
     window.addEventListener('mouseup', handleMouseUp);
     return () => window.removeEventListener('mouseup', handleMouseUp);
@@ -97,17 +106,33 @@ export function useSheetStore(rows: number, cols: number, initialData: Spreadshe
 
   const handleCellDoubleClick = (coord: string) => {
     setEditingCell(coord);
+    setEditingValue(null);
   };
+
+  const moveSelection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
+    if (!selectedCell) return;
+    const current = coordinateToIndex(selectedCell);
+    if (!current) return;
+
+    let { row, col } = current;
+    switch (direction) {
+      case 'up': if (row > 0) row--; break;
+      case 'down': if (row < rows - 1) row++; break;
+      case 'left': if (col > 0) col--; break;
+      case 'right': if (col < cols - 1) col++; break;
+    }
+
+    const next = indexToCoordinate(row, col);
+    setSelectionAnchor(next);
+    setSelectionFocus(next);
+  }, [selectedCell, rows, cols]);
 
   const selectRow = (rowIdx: number, shiftKey: boolean = false) => {
     const startCoord = indexToCoordinate(rowIdx, 0);
     const endCoord = indexToCoordinate(rowIdx, cols - 1);
     
     if (shiftKey && selectionAnchor) {
-      const anchorIdx = coordinateToIndex(selectionAnchor);
-      if (anchorIdx) {
-        setSelectionFocus(endCoord);
-      }
+      setSelectionFocus(endCoord);
     } else {
       setSelectionAnchor(startCoord);
       setSelectionFocus(endCoord);
@@ -120,10 +145,7 @@ export function useSheetStore(rows: number, cols: number, initialData: Spreadshe
     const endCoord = indexToCoordinate(rows - 1, colIdx);
     
     if (shiftKey && selectionAnchor) {
-      const anchorIdx = coordinateToIndex(selectionAnchor);
-      if (anchorIdx) {
-        setSelectionFocus(endCoord);
-      }
+      setSelectionFocus(endCoord);
     } else {
       setSelectionAnchor(startCoord);
       setSelectionFocus(endCoord);
@@ -131,68 +153,32 @@ export function useSheetStore(rows: number, cols: number, initialData: Spreadshe
     setEditingCell(null);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent, rows: number, cols: number) => {
-    if (!selectedCell || editingCell) return;
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (editingCell) return;
+    if (!selectedCell) return;
 
-    const start = coordinateToIndex(selectedCell);
-    if (!start) return;
-    
-    let { row, col } = start;
+    // Handle navigation
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
+      if (e.key === 'ArrowUp') moveSelection('up');
+      if (e.key === 'ArrowDown' || e.key === 'Enter') moveSelection('down');
+      if (e.key === 'ArrowLeft') moveSelection('left');
+      if (e.key === 'ArrowRight' || e.key === 'Tab') moveSelection('right');
+      e.preventDefault();
+      return;
+    }
 
-    switch (e.key) {
-      case 'ArrowUp':
-        if (row > 0) {
-          const next = indexToCoordinate(row - 1, col);
-          setSelectionAnchor(next);
-          setSelectionFocus(next);
-        }
-        e.preventDefault();
-        break;
-      case 'ArrowDown':
-        if (row < rows - 1) {
-          const next = indexToCoordinate(row + 1, col);
-          setSelectionAnchor(next);
-          setSelectionFocus(next);
-        }
-        e.preventDefault();
-        break;
-      case 'ArrowLeft':
-        if (col > 0) {
-          const next = indexToCoordinate(row, col - 1);
-          setSelectionAnchor(next);
-          setSelectionFocus(next);
-        }
-        e.preventDefault();
-        break;
-      case 'ArrowRight':
-        if (col < cols - 1) {
-          const next = indexToCoordinate(row, col + 1);
-          setSelectionAnchor(next);
-          setSelectionFocus(next);
-        }
-        e.preventDefault();
-        break;
-      case 'Enter':
-        setEditingCell(selectedCell);
-        e.preventDefault();
-        break;
-      case 'Tab':
-        if (col < cols - 1) {
-          const next = indexToCoordinate(row, col + 1);
-          setSelectionAnchor(next);
-          setSelectionFocus(next);
-        }
-        e.preventDefault();
-        break;
-      case 'Backspace':
-      case 'Delete':
-        selectionRange.forEach(coord => updateCell(coord, { value: '', formula: '' }));
-        break;
-      default:
-        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-          setEditingCell(selectedCell);
-        }
-        break;
+    // Handle deletion
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      selectionRange.forEach(coord => updateCell(coord, { value: '', formula: '' }));
+      e.preventDefault();
+      return;
+    }
+
+    // Start typing to edit
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      setEditingCell(selectedCell);
+      setEditingValue(e.key);
+      e.preventDefault();
     }
   };
 
@@ -203,6 +189,8 @@ export function useSheetStore(rows: number, cols: number, initialData: Spreadshe
     selectionRange,
     editingCell,
     setEditingCell,
+    editingValue,
+    setEditingValue,
     updateCell,
     handleMouseDown,
     handleMouseEnter,
@@ -213,5 +201,6 @@ export function useSheetStore(rows: number, cols: number, initialData: Spreadshe
     setSheetName,
     selectRow,
     selectCol,
+    moveSelection,
   };
 }

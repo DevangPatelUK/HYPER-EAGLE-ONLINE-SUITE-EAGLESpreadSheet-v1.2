@@ -13,12 +13,13 @@ interface GridProps {
   selectedCell: string | null;
   selectionRange: string[];
   editingCell: string | null;
+  editingValue: string | null;
   onMouseDown: (coord: string, shiftKey: boolean) => void;
   onMouseEnter: (coord: string) => void;
   onMouseUp: () => void;
   onDoubleClick: (coord: string) => void;
   onUpdate: (coord: string, value: string) => void;
-  onFinishEdit: () => void;
+  onFinishEdit: (nextKey?: string) => void;
   onSelectRow: (row: number, shift: boolean) => void;
   onSelectCol: (col: number, shift: boolean) => void;
 }
@@ -30,6 +31,7 @@ export const Grid: React.FC<GridProps> = ({
   selectedCell,
   selectionRange,
   editingCell,
+  editingValue,
   onMouseDown,
   onMouseEnter,
   onMouseUp,
@@ -63,7 +65,6 @@ export const Grid: React.FC<GridProps> = ({
             onClick={(e) => onSelectCol(i, e.shiftKey)}
             className={cn(
               "bg-muted h-8 border-r border-b border-border flex items-center justify-center text-xs font-medium text-muted-foreground cursor-pointer hover:bg-muted-foreground/10 transition-colors",
-              // Potential highlight if whole column is in selectionRange
               selectionRange.includes(indexToCoordinate(0, i)) && selectionRange.includes(indexToCoordinate(rows - 1, i)) && "bg-primary/20 text-primary font-bold"
             )}
           >
@@ -94,6 +95,7 @@ export const Grid: React.FC<GridProps> = ({
                   isActive={selectedCell === coord}
                   isInRange={selectionRange.includes(coord)}
                   isEditing={editingCell === coord}
+                  initialValue={editingCell === coord ? editingValue : null}
                   onMouseDown={(coord, shift) => onMouseDown(coord, shift)}
                   onMouseEnter={onMouseEnter}
                   onDoubleClick={onDoubleClick}
