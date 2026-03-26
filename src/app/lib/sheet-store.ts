@@ -11,6 +11,10 @@ import {
   Filter
 } from './formula-engine';
 
+const HISTORY_LIMIT = 30;
+const STORAGE_KEY_PAST = 'sheetflow_history_past';
+const STORAGE_KEY_FUTURE = 'sheetflow_history_future';
+
 export function useSheetStore(rows: number, cols: number) {
   const [workbook, setWorkbook] = useState<WorkbookData>({
     'sheet-1': { id: 'sheet-1', name: 'Sheet1', data: {} }
@@ -19,15 +23,44 @@ export function useSheetStore(rows: number, cols: number) {
   
   const [past, setPast] = useState<WorkbookData[]>([]);
   const [future, setFuture] = useState<WorkbookData[]>([]);
-
-  const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
-  const [selectionFocus, setSelectionFocus] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [editingCell, setEditingCell] = useState<string | null>(null);
-  const [editingValue, setEditingValue] = useState<string | null>(null);
+  const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
 
   const activeSheet = workbook[activeSheetId];
   const data = activeSheet?.data || {};
+
+  // Load history from localStorage on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const savedPast = localStorage.getItem(STORAGE_KEY_PAST);
+    const savedFuture = localStorage.getItem(STORAGE_KEY_FUTURE);
+    
+    if (savedPast) {
+      try {
+        setPast(JSON.parse(savedPast));
+      } catch (e) {
+        console.error('Failed to load past history:', e);
+      }
+    }
+    
+    if (savedFuture) {
+      try {
+        setFuture(JSON.parse(savedFuture));
+      } catch (e) {
+        console.error('Failed to load future history:', e);
+      }
+    }
+    
+    setIsHistoryLoaded(true);
+  }, []);
+
+  // Persist history to localStorage whenever it changes
+  useEffect(() => {
+    if (!isHistoryLoaded || typeof window === 'undefined') return;
+    
+    localStorage.setItem(STORAGE_KEY_PAST, JSON.stringify(past));
+    localStorage.setItem(STORAGE_KEY_FUTURE, JSON.stringify(future));
+  }, [past, future, isHistoryLoaded]);
 
   const selectionRange = useMemo(() => {
     if (!selectionAnchor || !selectionFocus) return selectionAnchor ? [selectionAnchor] : [];
@@ -70,7 +103,10 @@ export function useSheetStore(rows: number, cols: number) {
   }, []);
 
   const pushToHistory = useCallback((newWb: WorkbookData) => {
-    setPast(prev => [...prev, workbook]);
+    setPast(prev => {
+      const updated = [...prev, workbook];
+      return updated.length > HISTORY_LIMIT ? updated.slice(updated.length - HISTORY_LIMIT) : updated;
+    });
     setFuture([]);
     setWorkbook(newWb);
   }, [workbook]);
@@ -80,7 +116,10 @@ export function useSheetStore(rows: number, cols: number) {
     const previous = past[past.length - 1];
     const newPast = past.slice(0, past.length - 1);
     
-    setFuture(prev => [workbook, ...prev]);
+    setFuture(prev => {
+      const updated = [workbook, ...prev];
+      return updated.length > HISTORY_LIMIT ? updated.slice(0, HISTORY_LIMIT) : updated;
+    });
     setPast(newPast);
     setWorkbook(previous);
   }, [past, workbook]);
@@ -90,10 +129,19 @@ export function useSheetStore(rows: number, cols: number) {
     const next = future[0];
     const newFuture = future.slice(1);
 
-    setPast(prev => [...prev, workbook]);
+    setPast(prev => {
+      const updated = [...prev, workbook];
+      return updated.length > HISTORY_LIMIT ? updated.slice(updated.length - HISTORY_LIMIT) : updated;
+    });
     setFuture(newFuture);
     setWorkbook(next);
   }, [future, workbook]);
+
+  const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
+  const [selectionFocus, setSelectionFocus] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [editingCell, setEditingCell] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState<string | null>(null);
 
   const updateCell = useCallback((coord: string, updates: Partial<SpreadsheetData[string]>) => {
     const newWb = { ...workbook };
@@ -173,7 +221,6 @@ export function useSheetStore(rows: number, cols: number) {
       }
     });
     
-    // Shift row heights and hidden states
     const newRowHeights: Record<number, number> = {};
     if (sheet.rowHeights) {
       Object.entries(sheet.rowHeights).forEach(([r, h]) => {
@@ -216,7 +263,6 @@ export function useSheetStore(rows: number, cols: number) {
       }
     });
 
-    // Shift row heights and hidden states
     const newRowHeights: Record<number, number> = {};
     if (sheet.rowHeights) {
       Object.entries(sheet.rowHeights).forEach(([r, h]) => {
@@ -260,7 +306,6 @@ export function useSheetStore(rows: number, cols: number) {
       }
     });
 
-    // Shift col widths and hidden states
     const newColWidths: Record<number, number> = {};
     if (sheet.colWidths) {
       Object.entries(sheet.colWidths).forEach(([c, w]) => {
@@ -303,7 +348,6 @@ export function useSheetStore(rows: number, cols: number) {
       }
     });
 
-    // Shift col widths and hidden states
     const newColWidths: Record<number, number> = {};
     if (sheet.colWidths) {
       Object.entries(sheet.colWidths).forEach(([c, w]) => {
@@ -425,7 +469,6 @@ export function useSheetStore(rows: number, cols: number) {
       currentFilters.push({ colIndex, operator, value });
     }
 
-    // Compute hidden rows based on all filters
     const newFilteredRows: Record<number, boolean> = {};
     for (let r = 0; r < rows; r++) {
       let isVisible = true;
@@ -498,7 +541,6 @@ export function useSheetStore(rows: number, cols: number) {
   const handleMouseDown = (coord: string, shiftKey: boolean = false) => {
     if (editingCell === coord) return;
     
-    // Auto-expand selection to include the primary cell if clicking a hidden cell
     const cell = data[coord];
     const effectiveCoord = cell?.hiddenByMerge || coord;
 
@@ -527,6 +569,7 @@ export function useSheetStore(rows: number, cols: number) {
   const handleMouseUp = useCallback(() => setIsDragging(false), []);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     window.addEventListener('mouseup', handleMouseUp);
     return () => window.removeEventListener('mouseup', handleMouseUp);
   }, [handleMouseUp]);
