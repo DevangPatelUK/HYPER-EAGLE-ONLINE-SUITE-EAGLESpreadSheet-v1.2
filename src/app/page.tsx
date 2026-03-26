@@ -6,8 +6,9 @@ import { FormulaBar } from './components/spreadsheet/FormulaBar';
 import { Grid } from './components/spreadsheet/Grid';
 import { AIAssistant } from './components/spreadsheet/AIAssistant';
 import { ChartOverlay } from './components/spreadsheet/ChartOverlay';
+import { PrintSettingsDialog } from './components/spreadsheet/PrintSettings';
 import { useSheetStore } from './lib/sheet-store';
-import { evaluateFormula, coordinateToIndex } from './lib/formula-engine';
+import { evaluateFormula, coordinateToIndex, PrintSettings } from './lib/formula-engine';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import { Plus, X, ChevronRight, LogIn, UserCircle, LogOut } from 'lucide-react';
@@ -18,6 +19,13 @@ import { doc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+
+const DEFAULT_PRINT_SETTINGS: PrintSettings = {
+  orientation: 'portrait',
+  margins: 'standard',
+  showGridlines: true,
+  showHeaders: true,
+};
 
 export default function SpreadsheetPage() {
   const rows = 50;
@@ -69,7 +77,11 @@ export default function SpreadsheetPage() {
   } = useSheetStore(rows, cols);
 
   const [aiOpen, setAiOpen] = useState(false);
+  const [printOpen, setPrintOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+
+  const activeSheet = workbook[activeSheetId];
+  const printSettings = activeSheet?.printSettings || DEFAULT_PRINT_SETTINGS;
 
   useEffect(() => {
     if (!user || !db) return;
@@ -138,8 +150,6 @@ export default function SpreadsheetPage() {
     }
   };
 
-  const activeSheet = workbook[activeSheetId];
-
   const handleHideRows = useCallback(() => {
     if (selectionRange.length === 0) return;
     const indices = Array.from(new Set(selectionRange.map(c => coordinateToIndex(c)!.row)));
@@ -168,9 +178,35 @@ export default function SpreadsheetPage() {
     toast({ title: sheet.isProtected ? 'Protection Removed' : 'Sheet Protected' });
   };
 
+  const handleUpdatePrintSettings = (settings: PrintSettings) => {
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    if (!sheet) return;
+    newWb[activeSheetId] = { ...sheet, printSettings: settings };
+    setWorkbook(newWb);
+  };
+
+  const handlePrint = () => {
+    setPrintOpen(false);
+    setTimeout(() => {
+      window.print();
+    }, 500);
+  };
+
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-background outline-none" onKeyDown={handleKeyDown} tabIndex={0} role="application">
-      <header role="banner">
+    <div className={cn(
+      "flex flex-col h-screen overflow-hidden bg-background outline-none print:h-auto print:overflow-visible",
+      printSettings.orientation === 'landscape' && "print:landscape"
+    )} onKeyDown={handleKeyDown} tabIndex={0} role="application">
+      
+      {/* Print Header */}
+      {printSettings.headerText && (
+        <div className="hidden print:flex w-full justify-center py-4 border-b mb-4 text-sm font-semibold uppercase tracking-widest">
+          {printSettings.headerText}
+        </div>
+      )}
+
+      <header role="banner" className="print:hidden">
         <div className="bg-primary px-4 py-1 flex items-center justify-between text-white text-[10px] font-bold uppercase tracking-tighter">
           <div className="flex items-center gap-2"><UserCircle className="h-3 w-3" />{user ? `Signed in as ${user.displayName || user.email}` : 'Guest Mode'}</div>
           {user ? <button onClick={() => auth && signOut(auth)} className="hover:underline flex items-center gap-1"><LogOut className="h-3 w-3" /> Sign Out</button> : <button onClick={handleSignIn} className="hover:underline flex items-center gap-1"><LogIn className="h-3 w-3" /> Sign In</button>}
@@ -209,6 +245,7 @@ export default function SpreadsheetPage() {
           onUnmerge={unmergeSelection}
           onAddComment={handleAddComment}
           onAddChart={addChart}
+          onPrint={() => setPrintOpen(true)}
           onValidation={(validation) => selectionRange.forEach(c => updateCell(c, { validation }))}
           onConditionalFormat={(rule) => selectionRange.forEach(c => updateCell(c, { conditionalFormats: rule ? [rule] : [] }))}
           onLock={(lock) => selectionRange.forEach(c => updateCell(c, { isLocked: lock }))}
@@ -219,12 +256,23 @@ export default function SpreadsheetPage() {
         />
         <FormulaBar selectedCoord={selectedCell} formula={selectedCell ? (data[selectedCell]?.formula || data[selectedCell]?.value || '') : ''} onChange={(val) => selectedCell && handleUpdate(selectedCell, val)} />
       </header>
-      <main className="flex-1 overflow-hidden flex flex-col relative border-t border-border">
+
+      <main className={cn(
+        "flex-1 overflow-hidden flex flex-col relative border-t border-border print:border-none print:overflow-visible print:h-auto",
+        printSettings.margins === 'narrow' && "print:p-4",
+        printSettings.margins === 'standard' && "print:p-8",
+        printSettings.margins === 'wide' && "print:p-12",
+      )}>
         {activeSheet && (
           <Grid 
             rows={rows} 
             cols={cols} 
-            activeSheet={activeSheet}
+            activeSheet={{
+              ...activeSheet,
+              // Temporarily hide headers if set in print settings during print
+              frozenRows: 0, 
+              frozenCols: 0,
+            }}
             selectedCell={selectedCell} 
             selectionRange={selectionRange} 
             editingCell={editingCell} 
@@ -239,18 +287,28 @@ export default function SpreadsheetPage() {
             onSelectCol={selectCol} 
           />
         )}
-        {/* Charts Layer */}
-        {activeSheet?.charts?.map((chart) => (
-          <ChartOverlay 
-            key={chart.id} 
-            chart={chart} 
-            workbook={workbook} 
-            activeSheetId={activeSheetId} 
-            onRemove={removeChart}
-          />
-        ))}
+        {/* Charts Layer - Hidden in print by default for better layout */}
+        <div className="print:hidden">
+          {activeSheet?.charts?.map((chart) => (
+            <ChartOverlay 
+              key={chart.id} 
+              chart={chart} 
+              workbook={workbook} 
+              activeSheetId={activeSheetId} 
+              onRemove={removeChart}
+            />
+          ))}
+        </div>
       </main>
-      <nav className="h-10 bg-white border-t border-border flex items-center px-2 gap-1 overflow-x-auto scrollbar-hide shrink-0 shadow-inner">
+
+      {/* Print Footer */}
+      {printSettings.footerText && (
+        <div className="hidden print:flex w-full justify-center py-4 border-t mt-4 text-xs text-muted-foreground">
+          {printSettings.footerText}
+        </div>
+      )}
+
+      <nav className="h-10 bg-white border-t border-border flex items-center px-2 gap-1 overflow-x-auto scrollbar-hide shrink-0 shadow-inner print:hidden">
         {Object.values(workbook).map((sheet) => (
           <div key={sheet.id} className={cn("group flex items-center h-full px-4 text-xs font-semibold cursor-pointer border-r border-border transition-all min-w-[140px] justify-between relative", activeSheetId === sheet.id ? "bg-primary text-white" : "bg-secondary/20 text-muted-foreground")} onClick={() => setActiveSheetId(sheet.id)}>
             <span className="truncate">{sheet.name}</span>
@@ -260,11 +318,19 @@ export default function SpreadsheetPage() {
         <Button variant="ghost" size="icon" className="h-8 w-8 ml-1" onClick={addSheet}><Plus className="h-4 w-4" /></Button>
       </nav>
       <Toaster />
-      <footer className="h-6 bg-primary text-[10px] text-white flex items-center px-4 justify-between uppercase tracking-widest font-bold">
+      <footer className="h-6 bg-primary text-[10px] text-white flex items-center px-4 justify-between uppercase tracking-widest font-bold print:hidden">
         <div className="flex items-center gap-2"><span>SheetFlow v2.0 Security Enabled</span><ChevronRight className="h-3 w-3" /><span>{activeSheet?.name}</span>{isSyncing && <span className="animate-pulse ml-2">Syncing...</span>}</div>
         <span>{selectionRange.length > 1 ? `${selectionRange.length} cells selected` : 'Ready'}</span>
       </footer>
+
       <AIAssistant open={aiOpen} onOpenChange={setAiOpen} selectedRange={selectedCell} selectedRangeData={[]} onApplyFormula={(f) => selectedCell && handleUpdate(selectedCell, f)} />
+      <PrintSettingsDialog 
+        open={printOpen} 
+        onOpenChange={setPrintOpen} 
+        settings={printSettings} 
+        onUpdateSettings={handleUpdatePrintSettings}
+        onPrint={handlePrint}
+      />
     </div>
   );
 }

@@ -55,6 +55,15 @@ export type SpreadsheetChart = {
   position: { x: number; y: number; width: number; height: number };
 };
 
+export type PrintSettings = {
+  orientation: 'portrait' | 'landscape';
+  margins: 'standard' | 'narrow' | 'wide';
+  headerText?: string;
+  footerText?: string;
+  showGridlines: boolean;
+  showHeaders: boolean;
+};
+
 export type Sheet = {
   id: string;
   name: string;
@@ -69,6 +78,7 @@ export type Sheet = {
   frozenCols?: number;
   isProtected?: boolean;
   charts?: SpreadsheetChart[];
+  printSettings?: PrintSettings;
 };
 
 export type WorkbookData = Record<string, Sheet>;

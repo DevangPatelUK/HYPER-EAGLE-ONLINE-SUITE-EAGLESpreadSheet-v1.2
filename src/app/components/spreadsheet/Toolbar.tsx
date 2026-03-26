@@ -55,7 +55,8 @@ import {
   LineChart as LineChartIcon,
   PieChart as PieChartIcon,
   AreaChart as AreaChartIcon,
-  ScatterChart as ScatterChartIcon
+  ScatterChart as ScatterChartIcon,
+  Printer
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -112,6 +113,7 @@ interface ToolbarProps {
   onImportCSV: (file: File) => void;
   onExportCSV: () => void;
   onExportJSON: () => void;
+  onPrint: () => void;
   onAddComment: () => void;
   onValidation: (rule: ValidationRule | undefined) => void;
   onConditionalFormat: (rule: ConditionalFormatRule | undefined) => void;
@@ -178,6 +180,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onImportCSV,
   onExportCSV,
   onExportJSON,
+  onPrint,
   onAddComment,
   onValidation,
   onConditionalFormat,
@@ -235,7 +238,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   };
 
   return (
-    <div className="flex flex-col bg-white border-b border-border shadow-sm">
+    <div className="flex flex-col bg-white border-b border-border shadow-sm print:hidden">
       <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileChange} />
       
       <div className="flex items-center gap-4 px-4 py-1 border-b bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-widest select-none">
@@ -250,6 +253,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             <DropdownMenuItem onClick={handleImportClick}><Upload className="h-4 w-4 mr-2" />Import CSV</DropdownMenuItem>
             <DropdownMenuItem onClick={onExportCSV}><FileSpreadsheet className="h-4 w-4 mr-2" />Export as CSV</DropdownMenuItem>
             <DropdownMenuItem onClick={onExportJSON}><FileJson className="h-4 w-4 mr-2" />Export as JSON</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onPrint}><Printer className="h-4 w-4 mr-2" />Print Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onDelete} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Delete Active Sheet</DropdownMenuItem>
           </DropdownMenuContent>
