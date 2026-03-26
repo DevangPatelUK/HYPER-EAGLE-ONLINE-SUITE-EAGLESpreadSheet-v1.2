@@ -38,7 +38,8 @@ import {
   Combine,
   Split,
   EyeOff,
-  Eye
+  Eye,
+  Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -260,10 +261,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           </DropdownMenuContent>
         </DropdownMenu>
         
-        <span className="ml-auto text-accent flex items-center gap-1.5 opacity-80">
-          <Wand2 className="h-3 w-3" />
-          AI Toolbox
-        </span>
+        <DropdownMenu>
+          <DropdownMenuTrigger className="ml-auto text-accent flex items-center gap-1.5 hover:opacity-100 cursor-pointer transition-colors px-1 outline-none">
+            <Wand2 className="h-3 w-3" />
+            AI Toolbox <ChevronDown className="h-2 w-2" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[200px]">
+            <DropdownMenuItem onClick={onAI}>
+              <Sparkles className="h-4 w-4 mr-2" /> AI Formula Assistant
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="flex items-center gap-2 p-2 px-4 overflow-x-auto scrollbar-hide">
@@ -346,12 +354,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               <TooltipContent>Unmerge Cells</TooltipContent>
             </Tooltip>
           </div>
-
-          <div className="flex-1" />
-
-          <Button variant="outline" size="sm" className="h-8 gap-2 bg-accent/5 text-accent border-accent/20 hover:bg-accent hover:text-white" onClick={onAI}>
-            <Wand2 className="h-3.5 w-3.5" /> AI Assistant
-          </Button>
         </TooltipProvider>
       </div>
     </div>
