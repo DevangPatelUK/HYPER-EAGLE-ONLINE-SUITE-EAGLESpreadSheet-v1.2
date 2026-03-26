@@ -41,7 +41,10 @@ import {
   Eye,
   Sparkles,
   Filter,
-  FilterX
+  FilterX,
+  PanelTop,
+  PanelLeft,
+  Layout
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -86,6 +89,8 @@ interface ToolbarProps {
   onHideRows: () => void;
   onHideCols: () => void;
   onUnhideAll: () => void;
+  onFreezeRows: (n: number) => void;
+  onFreezeCols: (n: number) => void;
   onSort: (dir: 'asc' | 'desc') => void;
   onFilter: (op: 'contains' | 'gt' | 'lt' | 'eq', val: string) => void;
   onClearFilters: () => void;
@@ -143,6 +148,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onHideRows,
   onHideCols,
   onUnhideAll,
+  onFreezeRows,
+  onFreezeCols,
   onSort,
   onFilter,
   onClearFilters,
@@ -221,6 +228,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onMerge}><Combine className="h-4 w-4 mr-2" />Merge Selection</DropdownMenuItem>
             <DropdownMenuItem onClick={onUnmerge}><Split className="h-4 w-4 mr-2" />Unmerge Selection</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger className="flex items-center gap-1 hover:text-primary cursor-pointer transition-colors px-1 outline-none">
+            View <ChevronDown className="h-2 w-2" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-[200px]">
+            <DropdownMenuItem onClick={() => onFreezeRows(1)}><PanelTop className="h-4 w-4 mr-2" />Freeze Top Row</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onFreezeCols(1)}><PanelLeft className="h-4 w-4 mr-2" />Freeze First Column</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { onFreezeRows(0); onFreezeCols(0); }}><Layout className="h-4 w-4 mr-2" />Unfreeze All</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 

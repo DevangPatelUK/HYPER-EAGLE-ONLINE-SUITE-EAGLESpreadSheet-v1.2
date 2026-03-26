@@ -359,6 +359,18 @@ export function useSheetStore(rows: number, cols: number) {
     pushToHistory(newWb);
   }, [activeSheetId, workbook, pushToHistory]);
 
+  const setFrozenState = useCallback((rows: number | undefined, cols: number | undefined) => {
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    if (!sheet) return;
+    newWb[activeSheetId] = { 
+      ...sheet, 
+      frozenRows: rows !== undefined ? rows : sheet.frozenRows,
+      frozenCols: cols !== undefined ? cols : sheet.frozenCols
+    };
+    pushToHistory(newWb);
+  }, [activeSheetId, workbook, pushToHistory]);
+
   const sortRange = useCallback((direction: 'asc' | 'desc') => {
     if (selectionRange.length < 2) return;
     const start = coordinateToIndex(selectionRange[0])!;
@@ -586,6 +598,7 @@ export function useSheetStore(rows: number, cols: number) {
     deleteCol,
     hideRows,
     hideCols,
+    setFrozenState,
     sortRange,
     applyFilter,
     clearFilters,

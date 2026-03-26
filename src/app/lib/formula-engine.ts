@@ -34,6 +34,8 @@ export type Sheet = {
   hiddenCols?: Record<number, boolean>;
   filteredRows?: Record<number, boolean>;
   filters?: Filter[];
+  frozenRows?: number;
+  frozenCols?: number;
 };
 
 export type WorkbookData = Record<string, Sheet>;

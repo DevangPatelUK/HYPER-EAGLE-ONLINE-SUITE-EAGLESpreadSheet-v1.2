@@ -46,6 +46,7 @@ export default function SpreadsheetPage() {
     deleteCol,
     hideRows,
     hideCols,
+    setFrozenState,
     sortRange,
     applyFilter,
     clearFilters,
@@ -172,6 +173,8 @@ export default function SpreadsheetPage() {
           onHideRows={handleHideRows}
           onHideCols={handleHideCols}
           onUnhideAll={handleUnhideAll}
+          onFreezeRows={(n) => setFrozenState(n, undefined)}
+          onFreezeCols={(n) => setFrozenState(undefined, n)}
           onSort={(dir) => sortRange(dir)}
           onFilter={(op, val) => selectedCell && applyFilter(coordinateToIndex(selectedCell)!.col, op, val)}
           onClearFilters={clearFilters}
