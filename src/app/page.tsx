@@ -9,13 +9,19 @@ import { useSheetStore } from './lib/sheet-store';
 import { evaluateFormula, coordinateToIndex } from './lib/formula-engine';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
+import { Plus, X, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export default function SpreadsheetPage() {
   const rows = 50;
   const cols = 26;
   const {
+    workbook,
+    setWorkbook,
+    activeSheetId,
+    setActiveSheetId,
     data,
-    setData,
     selectedCell,
     selectionRange,
     editingCell,
@@ -26,139 +32,43 @@ export default function SpreadsheetPage() {
     handleMouseDown,
     handleMouseEnter,
     handleMouseUp,
-    handleCellDoubleClick,
     handleKeyDown,
-    sheetName,
-    setSheetName,
+    addSheet,
+    renameSheet,
+    removeSheet,
     selectRow,
     selectCol,
-    moveSelection,
   } = useSheetStore(rows, cols);
 
   const [aiOpen, setAiOpen] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('sheet-flow-current');
+    const saved = localStorage.getItem('sheet-flow-workbook');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setData(parsed.data || {});
-        setSheetName(parsed.name || 'Untitled Sheet');
+        setWorkbook(parsed.workbook);
+        setActiveSheetId(parsed.activeSheetId || Object.keys(parsed.workbook)[0]);
       } catch (e) {
-        console.error('Failed to load saved sheet');
+        console.error('Failed to load saved workbook');
       }
     }
-  }, [setData, setSheetName]);
+  }, [setWorkbook, setActiveSheetId]);
 
   const handleSave = () => {
-    localStorage.setItem('sheet-flow-current', JSON.stringify({ data, name: sheetName }));
-    toast({ title: 'Saved', description: 'Sheet saved successfully.' });
-  };
-
-  const handleNew = () => {
-    if (confirm('Create a new sheet? Current changes will be lost.')) {
-      setData({});
-      setSheetName('Untitled Sheet');
-      localStorage.removeItem('sheet-flow-current');
-    }
-  };
-
-  const handleDelete = () => {
-    if (confirm('Are you sure you want to delete this sheet?')) {
-      setData({});
-      setSheetName('Untitled Sheet');
-      localStorage.removeItem('sheet-flow-current');
-      toast({ title: 'Deleted', description: 'Sheet data cleared.', variant: 'destructive' });
-    }
-  };
-
-  const handleFormatBold = () => {
-    selectionRange.forEach(coord => {
-      const current = data[coord] || { value: '', formula: '' };
-      updateCell(coord, { bold: !current.bold });
-    });
-  };
-
-  const handleAlign = (align: 'left' | 'center' | 'right') => {
-    selectionRange.forEach(coord => {
-      updateCell(coord, { align });
-    });
-  };
-
-  const handleFormatType = (format: 'number' | 'currency' | 'percent' | 'text') => {
-    selectionRange.forEach(coord => {
-      updateCell(coord, { format });
-    });
-  };
-
-  const handleBgColor = (backgroundColor: string) => {
-    selectionRange.forEach(coord => {
-      updateCell(coord, { backgroundColor });
-    });
+    localStorage.setItem('sheet-flow-workbook', JSON.stringify({ workbook, activeSheetId }));
+    toast({ title: 'Saved', description: 'Workbook saved successfully.' });
   };
 
   const handleUpdate = (coord: string, val: string) => {
     if (val.startsWith('=')) {
-      updateCell(coord, { formula: val, value: evaluateFormula(coord, val, data) });
+      updateCell(coord, { formula: val, value: evaluateFormula(coord, val, workbook, activeSheetId) });
     } else {
       updateCell(coord, { value: val, formula: '' });
     }
   };
 
-  const handleFinishEdit = (nextKey?: string) => {
-    setEditingCell(null);
-    setEditingValue(null);
-    
-    if (nextKey === 'Enter') {
-      moveSelection('down');
-    } else if (nextKey === 'Tab') {
-      moveSelection('right');
-    }
-  };
-
-  const handleApplyFormula = (formula: string) => {
-    if (selectedCell) {
-      handleUpdate(selectedCell, formula);
-      setAiOpen(false);
-      toast({ title: 'Applied', description: 'Formula applied to cell.' });
-    }
-  };
-
-  const selectedRangeData = useMemo(() => {
-    if (selectionRange.length === 0) return [];
-    
-    const indices = selectionRange.map(c => coordinateToIndex(c)).filter(Boolean) as {row: number, col: number}[];
-    if (indices.length === 0) return [];
-
-    const minRow = Math.min(...indices.map(i => i.row));
-    const maxRow = Math.max(...indices.map(i => i.row));
-    const minCol = Math.min(...indices.map(i => i.col));
-    const maxCol = Math.max(...indices.map(i => i.col));
-
-    const grid: string[][] = [];
-    for (let r = minRow; r <= maxRow; r++) {
-      const rowArr: string[] = [];
-      for (let c = minCol; c <= maxCol; c++) {
-        const matchingIndex = indices.find(i => i.row === r && i.col === c);
-        if (matchingIndex) {
-          const coord = selectionRange.find(src => {
-            const sIdx = coordinateToIndex(src);
-            return sIdx?.row === r && sIdx?.col === c;
-          }) || '';
-          rowArr.push(data[coord]?.value || '');
-        } else {
-          rowArr.push('');
-        }
-      }
-      grid.push(rowArr);
-    }
-    return grid;
-  }, [selectionRange, data]);
-
-  const selectedRangeString = useMemo(() => {
-    if (selectionRange.length <= 1) return selectionRange[0] || null;
-    return `${selectionRange[0]}:${selectionRange[selectionRange.length - 1]}`;
-  }, [selectionRange]);
+  const activeSheet = workbook[activeSheetId];
 
   return (
     <div 
@@ -167,15 +77,15 @@ export default function SpreadsheetPage() {
       tabIndex={0}
     >
       <Toolbar
-        sheetName={sheetName}
-        onNameChange={setSheetName}
-        onBold={handleFormatBold}
-        onAlign={handleAlign}
-        onFormat={handleFormatType}
-        onBgColor={handleBgColor}
-        onNew={handleNew}
+        sheetName={activeSheet?.name || ''}
+        onNameChange={(name) => renameSheet(activeSheetId, name)}
+        onBold={() => selectionRange.forEach(c => updateCell(c, { bold: !(data[c]?.bold) }))}
+        onAlign={(align) => selectionRange.forEach(c => updateCell(c, { align }))}
+        onFormat={(format) => selectionRange.forEach(c => updateCell(c, { format }))}
+        onBgColor={(backgroundColor) => selectionRange.forEach(c => updateCell(c, { backgroundColor }))}
+        onNew={addSheet}
         onSave={handleSave}
-        onDelete={handleDelete}
+        onDelete={() => removeSheet(activeSheetId)}
         onAI={() => setAiOpen(true)}
       />
       
@@ -197,28 +107,62 @@ export default function SpreadsheetPage() {
           onMouseDown={handleMouseDown}
           onMouseEnter={handleMouseEnter}
           onMouseUp={handleMouseUp}
-          onDoubleClick={handleCellDoubleClick}
+          onDoubleClick={(c) => { setEditingCell(c); setEditingValue(null); }}
           onUpdate={handleUpdate}
-          onFinishEdit={handleFinishEdit}
-          onSelectRow={selectRow}
-          onSelectCol={selectCol}
+          onFinishEdit={(key) => {
+            setEditingCell(null);
+            setEditingValue(null);
+          }}
+          onSelectRow={(r) => selectRow(r)}
+          onSelectCol={(c) => selectCol(c)}
         />
+      </div>
+
+      {/* Sheet Tabs Bar */}
+      <div className="h-10 bg-white border-t border-border flex items-center px-2 gap-1 overflow-x-auto scrollbar-hide shrink-0">
+        {Object.values(workbook).map((sheet) => (
+          <div
+            key={sheet.id}
+            className={cn(
+              "group flex items-center h-full px-4 text-xs font-semibold cursor-pointer border-r border-border transition-all min-w-[120px] justify-between",
+              activeSheetId === sheet.id 
+                ? "bg-primary text-white" 
+                : "bg-secondary/20 text-muted-foreground hover:bg-secondary/40"
+            )}
+            onClick={() => setActiveSheetId(sheet.id)}
+          >
+            <span className="truncate">{sheet.name}</span>
+            {Object.keys(workbook).length > 1 && (
+              <X 
+                className={cn("h-3 w-3 ml-2 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity", activeSheetId === sheet.id && "text-white/70 hover:text-white")} 
+                onClick={(e) => { e.stopPropagation(); removeSheet(sheet.id); }}
+              />
+            )}
+          </div>
+        ))}
+        <Button variant="ghost" size="icon" className="h-8 w-8 ml-1" onClick={addSheet}>
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <Toaster />
+
+      <div className="h-6 bg-primary text-[10px] text-white flex items-center px-4 justify-between uppercase tracking-widest font-bold">
+        <div className="flex items-center gap-2">
+          <span>SheetFlow v1.1</span>
+          <ChevronRight className="h-3 w-3" />
+          <span>{activeSheet?.name}</span>
+        </div>
+        <span>{selectionRange.length > 1 ? `${selectionRange.length} cells selected` : 'Ready'}</span>
       </div>
 
       <AIAssistant
         open={aiOpen}
         onOpenChange={setAiOpen}
-        selectedRange={selectedRangeString}
-        selectedRangeData={selectedRangeData}
-        onApplyFormula={handleApplyFormula}
+        selectedRange={selectedCell}
+        selectedRangeData={[]} // Selection range data extraction could be added if needed
+        onApplyFormula={(f) => selectedCell && handleUpdate(selectedCell, f)}
       />
-      
-      <Toaster />
-
-      <div className="h-6 bg-primary text-[10px] text-white flex items-center px-4 justify-between uppercase tracking-widest font-bold">
-        <span>SheetFlow v1.0</span>
-        <span>{selectionRange.length > 1 ? `${selectionRange.length} cells selected` : 'Ready'}</span>
-      </div>
     </div>
   );
 }

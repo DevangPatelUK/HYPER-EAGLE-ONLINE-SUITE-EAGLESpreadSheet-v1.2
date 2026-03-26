@@ -1,188 +1,166 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { SpreadsheetData, evaluateFormula, indexToCoordinate, coordinateToIndex } from './formula-engine';
+import { 
+  SpreadsheetData, 
+  evaluateFormula, 
+  indexToCoordinate, 
+  coordinateToIndex, 
+  Sheet, 
+  WorkbookData 
+} from './formula-engine';
 
-export function useSheetStore(rows: number, cols: number, initialData: SpreadsheetData = {}) {
-  const [data, setData] = useState<SpreadsheetData>(initialData);
+export function useSheetStore(rows: number, cols: number) {
+  const [workbook, setWorkbook] = useState<WorkbookData>({
+    'sheet-1': { id: 'sheet-1', name: 'Sheet1', data: {} }
+  });
+  const [activeSheetId, setActiveSheetId] = useState('sheet-1');
   const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
   const [selectionFocus, setSelectionFocus] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<string | null>(null);
-  const [sheetName, setSheetName] = useState('Untitled Sheet');
 
-  // The "Active" cell is the one where the selection started
-  const selectedCell = selectionAnchor;
+  const activeSheet = workbook[activeSheetId];
+  const data = activeSheet?.data || {};
 
   const selectionRange = useMemo(() => {
     if (!selectionAnchor || !selectionFocus) return selectionAnchor ? [selectionAnchor] : [];
-    
     const start = coordinateToIndex(selectionAnchor);
     const end = coordinateToIndex(selectionFocus);
     if (!start || !end) return [selectionAnchor];
 
     const coords: string[] = [];
-    const minRow = Math.min(start.row, end.row);
-    const maxRow = Math.max(start.row, end.row);
-    const minCol = Math.min(start.col, end.col);
-    const maxCol = Math.max(start.col, end.col);
-
-    for (let r = minRow; r <= maxRow; r++) {
-      for (let c = minCol; c <= maxCol; c++) {
+    for (let r = Math.min(start.row, end.row); r <= Math.max(start.row, end.row); r++) {
+      for (let c = Math.min(start.col, end.col); c <= Math.max(start.col, end.col); c++) {
         coords.push(indexToCoordinate(r, c));
       }
     }
     return coords;
   }, [selectionAnchor, selectionFocus]);
 
-  const updateCell = useCallback((coord: string, updates: Partial<SpreadsheetData[string]>) => {
-    setData((prev) => {
-      const newData = { ...prev };
-      const current = newData[coord] || { value: '', formula: '' };
-      
-      const updatedCell = { 
-        ...current, 
-        ...updates
-      };
-      
-      newData[coord] = updatedCell;
-
-      // Create a copy for fresh calculations
-      const updatedData: SpreadsheetData = { ...newData };
-      
-      // Multi-pass or simple iterative recalculation of all formulas
-      // In a small sheet, we can just re-evaluate all formulas.
-      // The engine handles the recursive resolution and circular checks.
-      Object.keys(updatedData).forEach((key) => {
-        const cell = updatedData[key];
-        if (cell.formula?.startsWith('=')) {
-          updatedData[key] = {
-            ...cell,
-            value: evaluateFormula(key, cell.formula, updatedData)
-          };
-        }
+  const recalculateAll = useCallback((wb: WorkbookData) => {
+    const updatedWb = { ...wb };
+    // Simple iterative multi-pass to ensure cross-sheet dependencies resolve
+    // In a real app, you'd use a dependency graph.
+    for (let i = 0; i < 2; i++) {
+      Object.keys(updatedWb).forEach(sheetId => {
+        const sheet = updatedWb[sheetId];
+        const newData = { ...sheet.data };
+        Object.keys(newData).forEach(coord => {
+          const cell = newData[coord];
+          if (cell.formula?.startsWith('=')) {
+            newData[coord] = {
+              ...cell,
+              value: evaluateFormula(coord, cell.formula, updatedWb, sheetId)
+            };
+          }
+        });
+        updatedWb[sheetId] = { ...sheet, data: newData };
       });
-
-      return updatedData;
-    });
+    }
+    return updatedWb;
   }, []);
+
+  const updateCell = useCallback((coord: string, updates: Partial<SpreadsheetData[string]>) => {
+    setWorkbook((prev) => {
+      const newWb = { ...prev };
+      const sheet = newWb[activeSheetId];
+      const newData = { ...sheet.data };
+      const current = newData[coord] || { value: '', formula: '' };
+      newData[coord] = { ...current, ...updates };
+      newWb[activeSheetId] = { ...sheet, data: newData };
+      return recalculateAll(newWb);
+    });
+  }, [activeSheetId, recalculateAll]);
+
+  const addSheet = () => {
+    const id = `sheet-${Date.now()}`;
+    const name = `Sheet${Object.keys(workbook).length + 1}`;
+    setWorkbook(prev => ({
+      ...prev,
+      [id]: { id, name, data: {} }
+    }));
+    setActiveSheetId(id);
+  };
+
+  const renameSheet = (id: string, newName: string) => {
+    setWorkbook(prev => ({
+      ...prev,
+      [id]: { ...prev[id], name: newName }
+    }));
+  };
+
+  const removeSheet = (id: string) => {
+    if (Object.keys(workbook).length <= 1) return;
+    setWorkbook(prev => {
+      const newWb = { ...prev };
+      delete newWb[id];
+      return newWb;
+    });
+    if (activeSheetId === id) {
+      setActiveSheetId(Object.keys(workbook).find(k => k !== id)!);
+    }
+  };
 
   const handleMouseDown = (coord: string, shiftKey: boolean = false) => {
     if (editingCell === coord) return;
-    
     if (shiftKey && selectionAnchor) {
       setSelectionFocus(coord);
-      setIsDragging(true);
     } else {
-      if (selectedCell === coord) {
+      if (selectionAnchor === coord) {
         setEditingCell(coord);
         setEditingValue(null);
-        setIsDragging(false);
       } else {
         setSelectionAnchor(coord);
         setSelectionFocus(coord);
         setEditingCell(null);
-        setEditingValue(null);
-        setIsDragging(true);
       }
     }
+    setIsDragging(true);
   };
 
   const handleMouseEnter = (coord: string) => {
-    if (isDragging && !editingCell) {
-      setSelectionFocus(coord);
-    }
+    if (isDragging && !editingCell) setSelectionFocus(coord);
   };
 
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
+  const handleMouseUp = useCallback(() => setIsDragging(false), []);
 
   useEffect(() => {
     window.addEventListener('mouseup', handleMouseUp);
     return () => window.removeEventListener('mouseup', handleMouseUp);
   }, [handleMouseUp]);
 
-  const handleCellDoubleClick = (coord: string) => {
-    setEditingCell(coord);
-    setEditingValue(null);
-  };
-
-  const moveSelection = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
-    if (!selectedCell) return;
-    const current = coordinateToIndex(selectedCell);
-    if (!current) return;
-
-    let { row, col } = current;
-    switch (direction) {
-      case 'up': if (row > 0) row--; break;
-      case 'down': if (row < rows - 1) row++; break;
-      case 'left': if (col > 0) col--; break;
-      case 'right': if (col < cols - 1) col++; break;
-    }
-
-    const next = indexToCoordinate(row, col);
-    setSelectionAnchor(next);
-    setSelectionFocus(next);
-  }, [selectedCell, rows, cols]);
-
-  const selectRow = (rowIdx: number, shiftKey: boolean = false) => {
-    const startCoord = indexToCoordinate(rowIdx, 0);
-    const endCoord = indexToCoordinate(rowIdx, cols - 1);
-    
-    if (shiftKey && selectionAnchor) {
-      setSelectionFocus(endCoord);
-    } else {
-      setSelectionAnchor(startCoord);
-      setSelectionFocus(endCoord);
-    }
-    setEditingCell(null);
-  };
-
-  const selectCol = (colIdx: number, shiftKey: boolean = false) => {
-    const startCoord = indexToCoordinate(0, colIdx);
-    const endCoord = indexToCoordinate(rows - 1, colIdx);
-    
-    if (shiftKey && selectionAnchor) {
-      setSelectionFocus(endCoord);
-    } else {
-      setSelectionAnchor(startCoord);
-      setSelectionFocus(endCoord);
-    }
-    setEditingCell(null);
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (editingCell) return;
-    if (!selectedCell) return;
-
+    if (editingCell || !selectionAnchor) return;
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
-      if (e.key === 'ArrowUp') moveSelection('up');
-      if (e.key === 'ArrowDown' || e.key === 'Enter') moveSelection('down');
-      if (e.key === 'ArrowLeft') moveSelection('left');
-      if (e.key === 'ArrowRight' || e.key === 'Tab') moveSelection('right');
+      const current = coordinateToIndex(selectionAnchor)!;
+      let { row, col } = current;
+      if (e.key === 'ArrowUp' && row > 0) row--;
+      if ((e.key === 'ArrowDown' || e.key === 'Enter') && row < rows - 1) row++;
+      if (e.key === 'ArrowLeft' && col > 0) col--;
+      if ((e.key === 'ArrowRight' || e.key === 'Tab') && col < cols - 1) col++;
+      const next = indexToCoordinate(row, col);
+      setSelectionAnchor(next);
+      setSelectionFocus(next);
       e.preventDefault();
-      return;
-    }
-
-    if (e.key === 'Backspace' || e.key === 'Delete') {
-      selectionRange.forEach(coord => updateCell(coord, { value: '', formula: '' }));
+    } else if (e.key === 'Backspace' || e.key === 'Delete') {
+      selectionRange.forEach(c => updateCell(c, { value: '', formula: '' }));
       e.preventDefault();
-      return;
-    }
-
-    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      setEditingCell(selectedCell);
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      setEditingCell(selectionAnchor);
       setEditingValue(e.key);
       e.preventDefault();
     }
   };
 
   return {
+    workbook,
+    setWorkbook,
+    activeSheetId,
+    setActiveSheetId,
     data,
-    setData,
-    selectedCell,
+    selectedCell: selectionAnchor,
     selectionRange,
     editingCell,
     setEditingCell,
@@ -192,12 +170,17 @@ export function useSheetStore(rows: number, cols: number, initialData: Spreadshe
     handleMouseDown,
     handleMouseEnter,
     handleMouseUp,
-    handleCellDoubleClick,
     handleKeyDown,
-    sheetName,
-    setSheetName,
-    selectRow,
-    selectCol,
-    moveSelection,
+    addSheet,
+    renameSheet,
+    removeSheet,
+    selectRow: (r: number) => {
+      setSelectionAnchor(indexToCoordinate(r, 0));
+      setSelectionFocus(indexToCoordinate(r, cols - 1));
+    },
+    selectCol: (c: number) => {
+      setSelectionAnchor(indexToCoordinate(0, c));
+      setSelectionFocus(indexToCoordinate(rows - 1, c));
+    },
   };
 }
