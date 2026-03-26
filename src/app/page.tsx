@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Toolbar } from './components/spreadsheet/Toolbar';
 import { FormulaBar } from './components/spreadsheet/FormulaBar';
 import { Grid } from './components/spreadsheet/Grid';
 import { AIAssistant } from './components/spreadsheet/AIAssistant';
 import { useSheetStore } from './lib/sheet-store';
-import { evaluateFormula } from './lib/formula-engine';
+import { evaluateFormula, indexToCoordinate } from './lib/formula-engine';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import { Plus, X, ChevronRight } from 'lucide-react';
@@ -63,7 +63,7 @@ export default function SpreadsheetPage() {
 
   const handleSave = () => {
     localStorage.setItem('sheet-flow-workbook-v2', JSON.stringify({ workbook, activeSheetId }));
-    toast({ title: 'Saved', description: 'Workbook saved successfully.' });
+    toast({ title: 'Saved', description: 'Workbook saved successfully to local storage.' });
   };
 
   const handleUpdate = (coord: string, val: string) => {
@@ -72,6 +72,77 @@ export default function SpreadsheetPage() {
     } else {
       updateCell(coord, { value: val, formula: '' });
     }
+  };
+
+  const handleExportCSV = () => {
+    let csv = "";
+    for (let r = 0; r < rows; r++) {
+      let rowData = [];
+      for (let c = 0; c < cols; c++) {
+        const coord = indexToCoordinate(r, c);
+        const cellData = data[coord];
+        let val = cellData?.value || "";
+        // Basic escaping for CSV
+        if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+          val = `"${val.replace(/"/g, '""')}"`;
+        }
+        rowData.push(val);
+      }
+      csv += rowData.join(",") + "\n";
+    }
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${workbook[activeSheetId]?.name || 'sheet'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Exported', description: 'Sheet exported as CSV.' });
+  };
+
+  const handleExportJSON = () => {
+    const json = JSON.stringify({ workbook, activeSheetId }, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sheetflow_workbook_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Exported', description: 'Workbook exported as JSON.' });
+  };
+
+  const handleImportCSV = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split(/\r?\n/);
+      const newSheetData = { ...data };
+      
+      lines.forEach((line, r) => {
+        if (r >= rows) return;
+        const values = line.split(','); // Simple split, could be enhanced for quoted commas
+        values.forEach((val, c) => {
+          if (c >= cols) return;
+          const coord = indexToCoordinate(r, c);
+          let cleanedVal = val.trim();
+          if (cleanedVal.startsWith('"') && cleanedVal.endsWith('"')) {
+            cleanedVal = cleanedVal.slice(1, -1).replace(/""/g, '"');
+          }
+          newSheetData[coord] = { value: cleanedVal, formula: '' };
+        });
+      });
+
+      // Update the whole sheet in the workbook
+      const newWorkbook = { ...workbook };
+      newWorkbook[activeSheetId] = {
+        ...newWorkbook[activeSheetId],
+        data: newSheetData
+      };
+      setWorkbook(newWorkbook);
+      toast({ title: 'Imported', description: `Data imported into ${workbook[activeSheetId].name}` });
+    };
+    reader.readAsText(file);
   };
 
   const activeSheet = workbook[activeSheetId];
@@ -95,6 +166,9 @@ export default function SpreadsheetPage() {
         onAI={() => setAiOpen(true)}
         onUndo={undo}
         onRedo={redo}
+        onImportCSV={handleImportCSV}
+        onExportCSV={handleExportCSV}
+        onExportJSON={handleExportJSON}
         canUndo={canUndo}
         canRedo={canRedo}
       />
@@ -128,7 +202,6 @@ export default function SpreadsheetPage() {
         />
       </div>
 
-      {/* Sheet Tabs Bar */}
       <div className="h-10 bg-white border-t border-border flex items-center px-2 gap-1 overflow-x-auto scrollbar-hide shrink-0 shadow-inner">
         {Object.values(workbook).map((sheet) => (
           <div
@@ -162,7 +235,7 @@ export default function SpreadsheetPage() {
 
       <div className="h-6 bg-primary text-[10px] text-white flex items-center px-4 justify-between uppercase tracking-widest font-bold">
         <div className="flex items-center gap-2">
-          <span>SheetFlow v1.2</span>
+          <span>SheetFlow v1.5</span>
           <ChevronRight className="h-3 w-3" />
           <span>{activeSheet?.name}</span>
         </div>
