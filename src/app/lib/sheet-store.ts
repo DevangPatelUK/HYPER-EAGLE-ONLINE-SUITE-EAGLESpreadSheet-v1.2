@@ -16,14 +16,20 @@ const STORAGE_KEY_PAST = 'sheetflow_history_past';
 const STORAGE_KEY_FUTURE = 'sheetflow_history_future';
 
 export function useSheetStore(rows: number, cols: number) {
+  // State declarations moved to the top to avoid initialization errors
   const [workbook, setWorkbook] = useState<WorkbookData>({
     'sheet-1': { id: 'sheet-1', name: 'Sheet1', data: {} }
   });
   const [activeSheetId, setActiveSheetId] = useState('sheet-1');
-  
   const [past, setPast] = useState<WorkbookData[]>([]);
   const [future, setFuture] = useState<WorkbookData[]>([]);
   const [isHistoryLoaded, setIsHistoryLoaded] = useState(false);
+  
+  const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
+  const [selectionFocus, setSelectionFocus] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [editingCell, setEditingCell] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState<string | null>(null);
 
   const activeSheet = workbook[activeSheetId];
   const data = activeSheet?.data || {};
@@ -136,12 +142,6 @@ export function useSheetStore(rows: number, cols: number) {
     setFuture(newFuture);
     setWorkbook(next);
   }, [future, workbook]);
-
-  const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
-  const [selectionFocus, setSelectionFocus] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [editingCell, setEditingCell] = useState<string | null>(null);
-  const [editingValue, setEditingValue] = useState<string | null>(null);
 
   const updateCell = useCallback((coord: string, updates: Partial<SpreadsheetData[string]>) => {
     const newWb = { ...workbook };
