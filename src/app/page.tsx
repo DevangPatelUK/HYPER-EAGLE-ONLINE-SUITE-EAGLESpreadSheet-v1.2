@@ -85,6 +85,18 @@ export default function SpreadsheetPage() {
     });
   };
 
+  const handleFormatType = (format: 'number' | 'currency' | 'percent' | 'text') => {
+    selectionRange.forEach(coord => {
+      updateCell(coord, { format });
+    });
+  };
+
+  const handleBgColor = (backgroundColor: string) => {
+    selectionRange.forEach(coord => {
+      updateCell(coord, { backgroundColor });
+    });
+  };
+
   const handleUpdate = (coord: string, val: string) => {
     if (val.startsWith('=')) {
       updateCell(coord, { formula: val, value: evaluateFormula(coord, val, data) });
@@ -97,7 +109,6 @@ export default function SpreadsheetPage() {
     setEditingCell(null);
     setEditingValue(null);
     
-    // Handle navigation after editing
     if (nextKey === 'Enter') {
       moveSelection('down');
     } else if (nextKey === 'Tab') {
@@ -113,7 +124,6 @@ export default function SpreadsheetPage() {
     }
   };
 
-  // Prepare range data for AI Assistant
   const selectedRangeData = useMemo(() => {
     if (selectionRange.length === 0) return [];
     
@@ -161,6 +171,8 @@ export default function SpreadsheetPage() {
         onNameChange={setSheetName}
         onBold={handleFormatBold}
         onAlign={handleAlign}
+        onFormat={handleFormatType}
+        onBgColor={handleBgColor}
         onNew={handleNew}
         onSave={handleSave}
         onDelete={handleDelete}

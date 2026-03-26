@@ -3,6 +3,8 @@ export type CellData = {
   formula: string;
   bold?: boolean;
   align?: 'left' | 'center' | 'right';
+  backgroundColor?: string;
+  format?: 'number' | 'currency' | 'percent' | 'text';
 };
 
 export type SpreadsheetData = Record<string, CellData>;
@@ -45,6 +47,25 @@ function parseRange(rangeStr: string): string[] {
     }
   }
   return coords;
+}
+
+/**
+ * Formats a raw value based on the cell's format settings.
+ */
+export function formatCellValue(value: string, format?: string): string {
+  if (!value || isNaN(parseFloat(value))) return value;
+  const num = parseFloat(value);
+
+  switch (format) {
+    case 'currency':
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
+    case 'percent':
+      return new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 0 }).format(num / 100);
+    case 'number':
+      return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+    default:
+      return value;
+  }
 }
 
 /**
@@ -102,7 +123,6 @@ export function evaluateFormula(
     // 2. Handle IF Function: IF(condition, trueVal, falseVal)
     if (expression.startsWith('IF(')) {
       const argsStr = expression.slice(3, -1);
-      // Naive comma split (doesn't handle nested commas well, but works for basic IF)
       const args = argsStr.split(',').map(s => s.trim());
       if (args.length !== 3) return '#NAME?';
 
@@ -110,13 +130,11 @@ export function evaluateFormula(
       const trueVal = args[1];
       const falseVal = args[2];
 
-      // Replace references in condition
       const processedCondition = condition.replace(/[A-Z]+\d+/g, (match) => {
         const val = getCellValue(match, data, visited);
         return isNaN(parseFloat(val)) ? `"${val}"` : val;
       });
 
-      // Simple eval for condition
       // eslint-disable-next-line no-eval
       const result = eval(processedCondition);
       const chosenBranch = result ? trueVal : falseVal;
@@ -149,12 +167,10 @@ export function evaluateFormula(
       return isNaN(num) ? '0' : num.toString();
     });
 
-    // Check for division by zero
     if (processedExpr.includes('/0') && !processedExpr.includes('/0.')) {
       return '#DIV/0!';
     }
 
-    // Sanitize and evaluate
     if (/^[0-9+\-*/().\s]+$/.test(processedExpr)) {
       // eslint-disable-next-line no-eval
       const result = eval(processedExpr);

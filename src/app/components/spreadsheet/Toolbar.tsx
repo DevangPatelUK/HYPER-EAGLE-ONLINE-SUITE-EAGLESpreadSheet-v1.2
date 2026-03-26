@@ -1,7 +1,25 @@
 'use client';
 
 import React from 'react';
-import { Bold, AlignLeft, AlignCenter, AlignRight, FilePlus, Save, Trash2, Wand2, Undo, Redo, LayoutGrid, Type, Search } from 'lucide-react';
+import { 
+  Bold, 
+  AlignLeft, 
+  AlignCenter, 
+  AlignRight, 
+  FilePlus, 
+  Save, 
+  Trash2, 
+  Wand2, 
+  Undo, 
+  Redo, 
+  LayoutGrid, 
+  Type, 
+  Search,
+  CircleDollarSign,
+  Percent,
+  Hash,
+  Palette
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -10,10 +28,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface ToolbarProps {
   onBold: () => void;
   onAlign: (align: 'left' | 'center' | 'right') => void;
+  onFormat: (format: 'number' | 'currency' | 'percent' | 'text') => void;
+  onBgColor: (color: string) => void;
   onNew: () => void;
   onSave: () => void;
   onDelete: () => void;
@@ -22,9 +48,22 @@ interface ToolbarProps {
   onNameChange: (name: string) => void;
 }
 
+const COLORS = [
+  { name: 'None', value: '' },
+  { name: 'Red', value: '#fee2e2' },
+  { name: 'Orange', value: '#ffedd5' },
+  { name: 'Yellow', value: '#fef9c3' },
+  { name: 'Green', value: '#dcfce7' },
+  { name: 'Blue', value: '#dbeafe' },
+  { name: 'Purple', value: '#f3e8ff' },
+  { name: 'Pink', value: '#fce7f3' },
+];
+
 export const Toolbar: React.FC<ToolbarProps> = ({
   onBold,
   onAlign,
+  onFormat,
+  onBgColor,
   onNew,
   onSave,
   onDelete,
@@ -34,7 +73,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 }) => {
   return (
     <div className="flex flex-col bg-white border-b border-border shadow-sm">
-      {/* Top Toolbox Navigation Header */}
       <div className="flex items-center gap-4 px-4 py-1.5 border-b bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-widest select-none">
         <span className="hover:text-primary cursor-pointer transition-colors px-1">File</span>
         <span className="hover:text-primary cursor-pointer transition-colors px-1">Edit</span>
@@ -47,7 +85,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         </span>
       </div>
 
-      {/* Main Tool Box Actions */}
       <div className="flex items-center gap-2 p-2 px-4 overflow-x-auto scrollbar-hide">
         <div className="flex items-center gap-1 pr-4 border-r border-border shrink-0">
           <LayoutGrid className="h-4 w-4 text-primary/60 mr-1" />
@@ -60,7 +97,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         </div>
 
         <TooltipProvider>
-          {/* File Actions */}
           <div className="flex items-center gap-0.5 shrink-0">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -90,29 +126,59 @@ export const Toolbar: React.FC<ToolbarProps> = ({
 
           <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
 
-          {/* Edit History Actions */}
           <div className="flex items-center gap-0.5 shrink-0">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {}}>
-                  <Undo className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onFormat('currency')}>
+                  <CircleDollarSign className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Undo</TooltipContent>
+              <TooltipContent>Format as Currency</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {}}>
-                  <Redo className="h-4 w-4" />
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onFormat('percent')}>
+                  <Percent className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Redo</TooltipContent>
+              <TooltipContent>Format as Percentage</TooltipContent>
             </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onFormat('number')}>
+                  <Hash className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Format as Number</TooltipContent>
+            </Tooltip>
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Palette className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Cell Background Color</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="start" className="grid grid-cols-4 gap-1 p-2 w-32">
+                {COLORS.map((color) => (
+                  <DropdownMenuItem
+                    key={color.name}
+                    className="p-0 h-6 w-6 rounded border border-border cursor-pointer hover:scale-110 transition-transform"
+                    style={{ backgroundColor: color.value || 'white' }}
+                    onClick={() => onBgColor(color.value)}
+                  >
+                    <span className="sr-only">{color.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
 
-          {/* Format Actions */}
           <div className="flex items-center gap-0.5 shrink-0">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -148,31 +214,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             </Tooltip>
           </div>
 
-          <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
-
-          {/* Additional Utility Actions */}
-          <div className="flex items-center gap-0.5 shrink-0">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Type className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Text Format</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Search className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Find & Replace</TooltipContent>
-            </Tooltip>
-          </div>
-
           <div className="flex-1" />
 
-          {/* AI Assistant Button */}
           <div className="flex items-center shrink-0">
             <Button 
               variant="outline" 

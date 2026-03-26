@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { CellData } from '@/app/lib/formula-engine';
+import { CellData, formatCellValue } from '@/app/lib/formula-engine';
 
 interface CellProps {
   coord: string;
@@ -38,7 +38,6 @@ export const Cell: React.FC<CellProps> = ({
     if (!isEditing) {
       setLocalValue(data?.formula || data?.value || '');
     } else {
-      // If we started editing with a key press, use that as the starting value
       if (initialValue !== null && initialValue !== undefined) {
         setLocalValue(initialValue);
       } else {
@@ -52,7 +51,6 @@ export const Cell: React.FC<CellProps> = ({
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
-          // Only select text if we DIDN'T start with a specific character
           if (initialValue === null || initialValue === undefined) {
             inputRef.current.select();
           }
@@ -84,6 +82,8 @@ export const Cell: React.FC<CellProps> = ({
     onMouseDown(coord, e.shiftKey);
   };
 
+  const displayValue = formatCellValue(data?.value || '', data?.format);
+
   return (
     <div
       className={cn(
@@ -93,8 +93,10 @@ export const Cell: React.FC<CellProps> = ({
         isEditing && "shadow-lg z-20 bg-white",
         data?.bold && "font-bold",
         data?.align === 'center' && "justify-center",
-        data?.align === 'right' && "justify-end"
+        data?.align === 'right' && "justify-end",
+        data?.align === 'left' && "justify-start"
       )}
+      style={{ backgroundColor: data?.backgroundColor || undefined }}
       onMouseDown={handleMouseDown}
       onMouseEnter={() => onMouseEnter(coord)}
       onDoubleClick={() => onDoubleClick(coord)}
@@ -110,7 +112,7 @@ export const Cell: React.FC<CellProps> = ({
         />
       ) : (
         <span className="truncate pointer-events-none">
-          {data?.value || ''}
+          {displayValue}
         </span>
       )}
     </div>
