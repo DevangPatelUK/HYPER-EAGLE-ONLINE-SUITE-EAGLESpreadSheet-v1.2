@@ -62,6 +62,8 @@ export type Sheet = {
 
 export type WorkbookData = Record<string, Sheet>;
 
+export const SUPPORTED_FUNCTIONS = ['SUM', 'AVG', 'AVERAGE', 'MIN', 'MAX', 'COUNT', 'ROUND', 'IF'];
+
 export function coordinateToIndex(coord: string): { row: number; col: number } | null {
   const match = coord.match(/^([A-Z]+)(\d+)$/);
   if (!match) return null;
@@ -218,7 +220,7 @@ export function evaluateFormula(
   const expression = formula.slice(1).trim().toUpperCase();
   
   try {
-    const rangeFuncRegex = /^(SUM|AVG|MIN|MAX|COUNT)\(([^)]+)\)$/;
+    const rangeFuncRegex = /^(SUM|AVG|AVERAGE|MIN|MAX|COUNT)\(([^)]+)\)$/;
     const rangeMatch = expression.match(rangeFuncRegex);
     
     if (rangeMatch) {
@@ -249,7 +251,8 @@ export function evaluateFormula(
 
       switch (func) {
         case 'SUM': return values.reduce((a, b) => a + b, 0).toString();
-        case 'AVG': return values.length > 0 ? (values.reduce((a, b) => a + b, 0) / values.length).toString() : '0';
+        case 'AVG':
+        case 'AVERAGE': return values.length > 0 ? (values.reduce((a, b) => a + b, 0) / values.length).toString() : '0';
         case 'MIN': return values.length > 0 ? Math.min(...values).toString() : '0';
         case 'MAX': return values.length > 0 ? Math.max(...values).toString() : '0';
         case 'COUNT': return values.length.toString();

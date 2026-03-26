@@ -12,6 +12,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { toast } from '@/hooks/use-toast';
+import { FormulaAutocomplete } from './FormulaAutocomplete';
 
 interface CellProps {
   coord: string;
@@ -44,12 +45,14 @@ export const Cell: React.FC<CellProps> = ({
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [localValue, setLocalValue] = useState(data?.formula || data?.value || '');
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
 
   const isActuallyLocked = data?.isLocked || isProtected;
 
   useEffect(() => {
     if (!isEditing) {
       setLocalValue(data?.formula || data?.value || '');
+      setShowAutocomplete(false);
     } else {
       if (initialValue !== null && initialValue !== undefined) {
         setLocalValue(initialValue);
@@ -73,20 +76,27 @@ export const Cell: React.FC<CellProps> = ({
   }, [isEditing, initialValue, data?.type]);
 
   const handleBlur = () => {
-    if (isEditing) {
-      const validation = validateValue(localValue, data?.validation);
-      if (!validation.valid) {
-        toast({ title: 'Invalid Input', description: validation.message, variant: 'destructive' });
-        setLocalValue(data?.formula || data?.value || '');
-      } else {
-        onUpdate(coord, localValue);
+    // Small timeout to allow autocomplete selection
+    setTimeout(() => {
+      if (isEditing) {
+        const validation = validateValue(localValue, data?.validation);
+        if (!validation.valid) {
+          toast({ title: 'Invalid Input', description: validation.message, variant: 'destructive' });
+          setLocalValue(data?.formula || data?.value || '');
+        } else {
+          onUpdate(coord, localValue);
+        }
+        onFinishEdit();
       }
-      onFinishEdit();
-    }
+    }, 150);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === 'Tab') {
+      // If autocomplete is visible, its own listener handles selection
+      // but we need to prevent this handler from closing the editor too early
+      if (showAutocomplete) return;
+
       const validation = validateValue(localValue, data?.validation);
       if (!validation.valid) {
         toast({ title: 'Invalid Input', description: validation.message, variant: 'destructive' });
@@ -100,6 +110,17 @@ export const Cell: React.FC<CellProps> = ({
       setLocalValue(data?.formula || data?.value || '');
       onFinishEdit();
       e.preventDefault();
+    }
+  };
+
+  const handleAutocompleteSelect = (formula: string) => {
+    const lastSpecialChar = localValue.split(/[(),+\-*/]/).pop()?.length || 0;
+    const prefix = localValue.slice(0, localValue.length - lastSpecialChar);
+    const newValue = `${prefix}${formula}(`;
+    setLocalValue(newValue);
+    setShowAutocomplete(false);
+    if (inputRef.current) {
+      inputRef.current.focus();
     }
   };
 
@@ -150,16 +171,27 @@ export const Cell: React.FC<CellProps> = ({
     }
 
     return (
-      <input
-        ref={inputRef}
-        type={data?.type === 'date' ? 'date' : data?.type === 'number' ? 'number' : 'text'}
-        aria-label={`Editing cell ${coord}`}
-        className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary"
-        value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
-        onBlur={handleBlur}
-        onKeyDown={handleKeyDown}
-      />
+      <div className="relative w-full h-full">
+        <input
+          ref={inputRef}
+          type={data?.type === 'date' ? 'date' : data?.type === 'number' ? 'number' : 'text'}
+          aria-label={`Editing cell ${coord}`}
+          className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary"
+          value={localValue}
+          onChange={(e) => {
+            setLocalValue(e.target.value);
+            setShowAutocomplete(e.target.value.startsWith('='));
+          }}
+          onBlur={handleBlur}
+          onKeyDown={handleKeyDown}
+        />
+        <FormulaAutocomplete 
+          inputValue={localValue} 
+          isOpen={showAutocomplete} 
+          onSelect={handleAutocompleteSelect} 
+          onClose={() => setShowAutocomplete(false)}
+        />
+      </div>
     );
   };
 
