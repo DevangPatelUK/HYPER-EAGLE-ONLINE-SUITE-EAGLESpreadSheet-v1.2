@@ -152,34 +152,38 @@ export default function SpreadsheetPage() {
       className="flex flex-col h-screen overflow-hidden bg-background outline-none"
       onKeyDown={handleKeyDown}
       tabIndex={0}
+      role="application"
+      aria-label="SheetFlow Spreadsheet Application"
     >
-      <Toolbar
-        sheetName={activeSheet?.name || ''}
-        onNameChange={(name) => renameSheet(activeSheetId, name)}
-        onBold={() => selectionRange.forEach(c => updateCell(c, { bold: !(data[c]?.bold) }))}
-        onAlign={(align) => selectionRange.forEach(c => updateCell(c, { align }))}
-        onFormat={(format) => selectionRange.forEach(c => updateCell(c, { format }))}
-        onBgColor={(backgroundColor) => selectionRange.forEach(c => updateCell(c, { backgroundColor }))}
-        onNew={addSheet}
-        onSave={handleSave}
-        onDelete={() => removeSheet(activeSheetId)}
-        onAI={() => setAiOpen(true)}
-        onUndo={undo}
-        onRedo={redo}
-        onImportCSV={handleImportCSV}
-        onExportCSV={handleExportCSV}
-        onExportJSON={handleExportJSON}
-        canUndo={canUndo}
-        canRedo={canRedo}
-      />
-      
-      <FormulaBar
-        selectedCoord={selectedCell}
-        formula={selectedCell ? (data[selectedCell]?.formula || data[selectedCell]?.value || '') : ''}
-        onChange={(val) => selectedCell && handleUpdate(selectedCell, val)}
-      />
+      <header role="banner">
+        <Toolbar
+          sheetName={activeSheet?.name || ''}
+          onNameChange={(name) => renameSheet(activeSheetId, name)}
+          onBold={() => selectionRange.forEach(c => updateCell(c, { bold: !(data[c]?.bold) }))}
+          onAlign={(align) => selectionRange.forEach(c => updateCell(c, { align }))}
+          onFormat={(format) => selectionRange.forEach(c => updateCell(c, { format }))}
+          onBgColor={(backgroundColor) => selectionRange.forEach(c => updateCell(c, { backgroundColor }))}
+          onNew={addSheet}
+          onSave={handleSave}
+          onDelete={() => removeSheet(activeSheetId)}
+          onAI={() => setAiOpen(true)}
+          onUndo={undo}
+          onRedo={redo}
+          onImportCSV={handleImportCSV}
+          onExportCSV={handleExportCSV}
+          onExportJSON={handleExportJSON}
+          canUndo={canUndo}
+          canRedo={canRedo}
+        />
+        
+        <FormulaBar
+          selectedCoord={selectedCell}
+          formula={selectedCell ? (data[selectedCell]?.formula || data[selectedCell]?.value || '') : ''}
+          onChange={(val) => selectedCell && handleUpdate(selectedCell, val)}
+        />
+      </header>
 
-      <div className="flex-1 overflow-hidden flex flex-col relative border-t border-border">
+      <main className="flex-1 overflow-hidden flex flex-col relative border-t border-border" role="main">
         <Grid
           rows={rows}
           cols={cols}
@@ -200,9 +204,9 @@ export default function SpreadsheetPage() {
           onSelectRow={(r) => selectRow(r)}
           onSelectCol={(c) => selectCol(c)}
         />
-      </div>
+      </main>
 
-      <div className="h-10 bg-white border-t border-border flex items-center px-2 gap-1 overflow-x-auto scrollbar-hide shrink-0 shadow-inner">
+      <nav className="h-10 bg-white border-t border-border flex items-center px-2 gap-1 overflow-x-auto scrollbar-hide shrink-0 shadow-inner" aria-label="Sheet Selection">
         {Object.values(workbook).map((sheet) => (
           <div
             key={sheet.id}
@@ -213,12 +217,15 @@ export default function SpreadsheetPage() {
                 : "bg-secondary/20 text-muted-foreground hover:bg-secondary/40"
             )}
             onClick={() => setActiveSheetId(sheet.id)}
+            role="tab"
+            aria-selected={activeSheetId === sheet.id}
           >
             <span className="truncate">{sheet.name}</span>
             {Object.keys(workbook).length > 1 && (
               <X 
                 className={cn("h-3 w-3 ml-2 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-opacity", activeSheetId === sheet.id && "text-white/70 hover:text-white")} 
                 onClick={(e) => { e.stopPropagation(); removeSheet(sheet.id); }}
+                aria-label={`Remove sheet ${sheet.name}`}
               />
             )}
             {activeSheetId === sheet.id && (
@@ -226,21 +233,27 @@ export default function SpreadsheetPage() {
             )}
           </div>
         ))}
-        <Button variant="ghost" size="icon" className="h-8 w-8 ml-1 hover:bg-primary/10 hover:text-primary" onClick={addSheet}>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-8 w-8 ml-1 hover:bg-primary/10 hover:text-primary" 
+          onClick={addSheet}
+          aria-label="Add new sheet"
+        >
           <Plus className="h-4 w-4" />
         </Button>
-      </div>
+      </nav>
 
       <Toaster />
 
-      <div className="h-6 bg-primary text-[10px] text-white flex items-center px-4 justify-between uppercase tracking-widest font-bold">
+      <footer className="h-6 bg-primary text-[10px] text-white flex items-center px-4 justify-between uppercase tracking-widest font-bold" role="status" aria-live="polite">
         <div className="flex items-center gap-2">
           <span>SheetFlow v1.5</span>
           <ChevronRight className="h-3 w-3" />
           <span>{activeSheet?.name}</span>
         </div>
         <span>{selectionRange.length > 1 ? `${selectionRange.length} cells selected` : 'Ready'}</span>
-      </div>
+      </footer>
 
       <AIAssistant
         open={aiOpen}

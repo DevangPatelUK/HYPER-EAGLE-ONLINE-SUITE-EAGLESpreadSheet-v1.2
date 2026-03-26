@@ -86,6 +86,10 @@ export const Cell: React.FC<CellProps> = ({
 
   return (
     <div
+      role="gridcell"
+      aria-selected={isActive || isInRange}
+      aria-readonly={!isEditing}
+      aria-label={`Cell ${coord}, value: ${displayValue}`}
       className={cn(
         "relative h-8 border-r border-b border-border min-w-[120px] flex items-center px-2 text-sm overflow-hidden select-none cursor-cell transition-colors",
         isInRange && "bg-primary/10",
@@ -104,6 +108,7 @@ export const Cell: React.FC<CellProps> = ({
       {isEditing ? (
         <input
           ref={inputRef}
+          aria-label={`Editing cell ${coord}`}
           className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary"
           value={localValue}
           onChange={(e) => setLocalValue(e.target.value)}

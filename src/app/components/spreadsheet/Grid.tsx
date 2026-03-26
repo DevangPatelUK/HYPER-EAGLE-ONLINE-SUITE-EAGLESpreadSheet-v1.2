@@ -53,12 +53,23 @@ export const Grid: React.FC<GridProps> = ({
   };
 
   return (
-    <div className="flex-1 overflow-auto bg-white select-none">
+    <div 
+      className="flex-1 overflow-auto bg-white select-none"
+      role="grid"
+      aria-rowcount={rows + 1}
+      aria-colcount={cols + 1}
+      aria-label="Spreadsheet Grid"
+    >
       <div 
         className="grid sticky top-0 left-0 z-30"
         style={{ gridTemplateColumns: `40px repeat(${cols}, 120px)` }}
+        role="row"
       >
-        <div className="bg-muted h-8 border-r border-b border-border flex items-center justify-center" />
+        <div 
+          className="bg-muted h-8 border-r border-b border-border flex items-center justify-center" 
+          role="columnheader"
+          aria-label="Select All"
+        />
         {Array.from({ length: cols }).map((_, i) => (
           <div
             key={i}
@@ -67,6 +78,8 @@ export const Grid: React.FC<GridProps> = ({
               "bg-muted h-8 border-r border-b border-border flex items-center justify-center text-xs font-medium text-muted-foreground cursor-pointer hover:bg-muted-foreground/10 transition-colors",
               selectionRange.includes(indexToCoordinate(0, i)) && selectionRange.includes(indexToCoordinate(rows - 1, i)) && "bg-primary/20 text-primary font-bold"
             )}
+            role="columnheader"
+            aria-label={`Column ${getColHeader(i)}`}
           >
             {getColHeader(i)}
           </div>
@@ -82,26 +95,29 @@ export const Grid: React.FC<GridProps> = ({
                 "bg-muted border-r border-b border-border flex items-center justify-center text-xs font-medium text-muted-foreground sticky left-0 z-20 cursor-pointer hover:bg-muted-foreground/10 transition-colors",
                 selectionRange.includes(indexToCoordinate(r, 0)) && selectionRange.includes(indexToCoordinate(r, cols - 1)) && "bg-primary/20 text-primary font-bold"
               )}
+              role="rowheader"
+              aria-label={`Row ${r + 1}`}
             >
               {r + 1}
             </div>
             {Array.from({ length: cols }).map((_, c) => {
               const coord = indexToCoordinate(r, c);
               return (
-                <Cell
-                  key={coord}
-                  coord={coord}
-                  data={data[coord]}
-                  isActive={selectedCell === coord}
-                  isInRange={selectionRange.includes(coord)}
-                  isEditing={editingCell === coord}
-                  initialValue={editingCell === coord ? editingValue : null}
-                  onMouseDown={(coord, shift) => onMouseDown(coord, shift)}
-                  onMouseEnter={onMouseEnter}
-                  onDoubleClick={onDoubleClick}
-                  onUpdate={onUpdate}
-                  onFinishEdit={onFinishEdit}
-                />
+                <div key={coord} role="row">
+                  <Cell
+                    coord={coord}
+                    data={data[coord]}
+                    isActive={selectedCell === coord}
+                    isInRange={selectionRange.includes(coord)}
+                    isEditing={editingCell === coord}
+                    initialValue={editingCell === coord ? editingValue : null}
+                    onMouseDown={(coord, shift) => onMouseDown(coord, shift)}
+                    onMouseEnter={onMouseEnter}
+                    onDoubleClick={onDoubleClick}
+                    onUpdate={onUpdate}
+                    onFinishEdit={onFinishEdit}
+                  />
+                </div>
               );
             })}
           </React.Fragment>
