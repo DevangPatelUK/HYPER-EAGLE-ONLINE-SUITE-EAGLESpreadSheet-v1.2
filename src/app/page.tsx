@@ -5,6 +5,7 @@ import { Toolbar } from './components/spreadsheet/Toolbar';
 import { FormulaBar } from './components/spreadsheet/FormulaBar';
 import { Grid } from './components/spreadsheet/Grid';
 import { AIAssistant } from './components/spreadsheet/AIAssistant';
+import { ChartOverlay } from './components/spreadsheet/ChartOverlay';
 import { useSheetStore } from './lib/sheet-store';
 import { evaluateFormula, coordinateToIndex } from './lib/formula-engine';
 import { toast } from '@/hooks/use-toast';
@@ -50,6 +51,8 @@ export default function SpreadsheetPage() {
     sortRange,
     applyFilter,
     clearFilters,
+    addChart,
+    removeChart,
     handleMouseDown,
     handleMouseEnter,
     handleMouseUp,
@@ -205,6 +208,7 @@ export default function SpreadsheetPage() {
           onMerge={mergeSelection}
           onUnmerge={unmergeSelection}
           onAddComment={handleAddComment}
+          onAddChart={addChart}
           onValidation={(validation) => selectionRange.forEach(c => updateCell(c, { validation }))}
           onConditionalFormat={(rule) => selectionRange.forEach(c => updateCell(c, { conditionalFormats: rule ? [rule] : [] }))}
           onLock={(lock) => selectionRange.forEach(c => updateCell(c, { isLocked: lock }))}
@@ -235,6 +239,16 @@ export default function SpreadsheetPage() {
             onSelectCol={selectCol} 
           />
         )}
+        {/* Charts Layer */}
+        {activeSheet?.charts?.map((chart) => (
+          <ChartOverlay 
+            key={chart.id} 
+            chart={chart} 
+            workbook={workbook} 
+            activeSheetId={activeSheetId} 
+            onRemove={removeChart}
+          />
+        ))}
       </main>
       <nav className="h-10 bg-white border-t border-border flex items-center px-2 gap-1 overflow-x-auto scrollbar-hide shrink-0 shadow-inner">
         {Object.values(workbook).map((sheet) => (

@@ -45,6 +45,16 @@ export type Filter = {
   value: string;
 };
 
+export type ChartType = 'bar' | 'line' | 'pie' | 'area' | 'scatter';
+
+export type SpreadsheetChart = {
+  id: string;
+  type: ChartType;
+  range: string;
+  title: string;
+  position: { x: number; y: number; width: number; height: number };
+};
+
 export type Sheet = {
   id: string;
   name: string;
@@ -58,6 +68,7 @@ export type Sheet = {
   frozenRows?: number;
   frozenCols?: number;
   isProtected?: boolean;
+  charts?: SpreadsheetChart[];
 };
 
 export type WorkbookData = Record<string, Sheet>;
@@ -88,12 +99,12 @@ export function indexToCoordinate(row: number, col: number): string {
   return `${colStr}${row + 1}`;
 }
 
-function parseRange(rangeStr: string): string[] {
+export function parseRange(rangeStr: string): string[] {
   const [start, end] = rangeStr.split(':');
-  if (!start || !end) return [];
+  if (!start || !end) return [rangeStr];
   const startIdx = coordinateToIndex(start);
   const endIdx = coordinateToIndex(end);
-  if (!startIdx || !endIdx) return [];
+  if (!startIdx || !endIdx) return [rangeStr];
 
   const coords: string[] = [];
   for (let r = Math.min(startIdx.row, endIdx.row); r <= Math.max(startIdx.row, endIdx.row); r++) {

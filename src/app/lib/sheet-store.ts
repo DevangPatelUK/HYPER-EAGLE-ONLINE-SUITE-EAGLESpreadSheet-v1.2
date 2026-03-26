@@ -8,7 +8,9 @@ import {
   coordinateToIndex, 
   Sheet, 
   WorkbookData,
-  Filter
+  Filter,
+  ChartType,
+  SpreadsheetChart
 } from './formula-engine';
 
 const HISTORY_LIMIT = 30;
@@ -16,9 +18,8 @@ const STORAGE_KEY_PAST = 'sheetflow_history_past';
 const STORAGE_KEY_FUTURE = 'sheetflow_history_future';
 
 export function useSheetStore(rows: number, cols: number) {
-  // State declarations moved to the top to avoid initialization errors
   const [workbook, setWorkbook] = useState<WorkbookData>({
-    'sheet-1': { id: 'sheet-1', name: 'Sheet1', data: {} }
+    'sheet-1': { id: 'sheet-1', name: 'Sheet1', data: {}, charts: [] }
   });
   const [activeSheetId, setActiveSheetId] = useState('sheet-1');
   const [past, setPast] = useState<WorkbookData[]>([]);
@@ -34,7 +35,6 @@ export function useSheetStore(rows: number, cols: number) {
   const activeSheet = workbook[activeSheetId];
   const data = activeSheet?.data || {};
 
-  // Load history from localStorage on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
@@ -60,7 +60,6 @@ export function useSheetStore(rows: number, cols: number) {
     setIsHistoryLoaded(true);
   }, []);
 
-  // Persist history to localStorage whenever it changes
   useEffect(() => {
     if (!isHistoryLoaded || typeof window === 'undefined') return;
     
@@ -507,12 +506,39 @@ export function useSheetStore(rows: number, cols: number) {
     pushToHistory(newWb);
   }, [activeSheetId, workbook, pushToHistory]);
 
+  const addChart = useCallback((type: ChartType) => {
+    if (selectionRange.length === 0) return;
+    const start = selectionRange[0];
+    const end = selectionRange[selectionRange.length - 1];
+    const range = `${start}:${end}`;
+    
+    const newChart: SpreadsheetChart = {
+      id: `chart-${Date.now()}`,
+      type,
+      range,
+      title: `${type.charAt(0).toUpperCase() + type.slice(1)} Chart (${range})`,
+      position: { x: 50, y: 50, width: 450, height: 300 }
+    };
+
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    newWb[activeSheetId] = { ...sheet, charts: [...(sheet.charts || []), newChart] };
+    pushToHistory(newWb);
+  }, [selectionRange, activeSheetId, workbook, pushToHistory]);
+
+  const removeChart = useCallback((chartId: string) => {
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    newWb[activeSheetId] = { ...sheet, charts: (sheet.charts || []).filter(c => c.id !== chartId) };
+    pushToHistory(newWb);
+  }, [activeSheetId, workbook, pushToHistory]);
+
   const addSheet = () => {
     const id = `sheet-${Date.now()}`;
     const name = `Sheet${Object.keys(workbook).length + 1}`;
     const newWb = {
       ...workbook,
-      [id]: { id, name, data: {} }
+      [id]: { id, name, data: {}, charts: [] }
     };
     pushToHistory(newWb);
     setActiveSheetId(id);
@@ -645,6 +671,8 @@ export function useSheetStore(rows: number, cols: number) {
     sortRange,
     applyFilter,
     clearFilters,
+    addChart,
+    removeChart,
     handleMouseDown,
     handleMouseEnter,
     handleMouseUp,

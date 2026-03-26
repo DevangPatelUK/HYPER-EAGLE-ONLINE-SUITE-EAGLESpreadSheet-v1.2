@@ -50,7 +50,12 @@ import {
   ShieldCheck,
   Lock,
   Unlock,
-  Shield
+  Shield,
+  BarChart,
+  LineChart as LineChartIcon,
+  PieChart as PieChartIcon,
+  AreaChart as AreaChartIcon,
+  ScatterChart as ScatterChartIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -71,7 +76,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuCheckboxItem
 } from "@/components/ui/dropdown-menu";
-import { ValidationRule, ConditionalFormatRule } from '@/app/lib/formula-engine';
+import { ValidationRule, ConditionalFormatRule, ChartType } from '@/app/lib/formula-engine';
 
 interface ToolbarProps {
   onBold: () => void;
@@ -103,6 +108,7 @@ interface ToolbarProps {
   onClearFilters: () => void;
   onMerge: () => void;
   onUnmerge: () => void;
+  onAddChart: (type: ChartType) => void;
   onImportCSV: (file: File) => void;
   onExportCSV: () => void;
   onExportJSON: () => void;
@@ -168,6 +174,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onClearFilters,
   onMerge,
   onUnmerge,
+  onAddChart,
   onImportCSV,
   onExportCSV,
   onExportJSON,
@@ -289,6 +296,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <DropdownMenuContent align="start" className="min-w-[200px]">
             <DropdownMenuItem onClick={onInsertRow}><Rows className="h-4 w-4 mr-2" />Row Below</DropdownMenuItem>
             <DropdownMenuItem onClick={onInsertCol}><Columns className="h-4 w-4 mr-2" />Column Right</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger><BarChart className="h-4 w-4 mr-2" />Chart</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-[150px]">
+                <DropdownMenuItem onClick={() => onAddChart('bar')}><BarChart className="h-4 w-4 mr-2" />Bar Chart</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onAddChart('line')}><LineChartIcon className="h-4 w-4 mr-2" />Line Chart</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onAddChart('area')}><AreaChartIcon className="h-4 w-4 mr-2" />Area Chart</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onAddChart('pie')}><PieChartIcon className="h-4 w-4 mr-2" />Pie Chart</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onAddChart('scatter')}><ScatterChartIcon className="h-4 w-4 mr-2" />Scatter Plot</DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -411,7 +429,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onUndo} disabled={!canRedo}><Redo className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRedo} disabled={!canRedo}><Redo className="h-4 w-4" /></Button>
               </TooltipTrigger>
               <TooltipContent>Redo</TooltipContent>
             </Tooltip>
