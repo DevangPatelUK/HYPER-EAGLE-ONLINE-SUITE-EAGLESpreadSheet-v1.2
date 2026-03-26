@@ -67,6 +67,7 @@ export default function SpreadsheetPage() {
     handleMouseEnter,
     handleMouseUp,
     handleKeyDown,
+    onFinishEdit,
     addSheet,
     renameSheet,
     removeSheet,
@@ -249,6 +250,7 @@ export default function SpreadsheetPage() {
           onPrint={() => setPrintOpen(true)}
           onValidation={(v) => selectionRange.forEach(c => updateCell(c, { validation: v }))}
           onConditionalFormat={(r) => selectionRange.forEach(c => updateCell(c, { conditionalFormats: r ? [r] : [] }))}
+          onPrintPreview={() => {}}
           onLock={(l) => selectionRange.forEach(c => updateCell(c, { isLocked: l }))}
           onToggleProtectSheet={handleToggleProtectSheet}
           isSheetProtected={!!activeSheet?.isProtected}
@@ -276,7 +278,7 @@ export default function SpreadsheetPage() {
             onMouseUp={handleMouseUp} 
             onDoubleClick={(c) => { setEditingCell(c); setEditingValue(null); }} 
             onUpdate={handleUpdate} 
-            onFinishEdit={() => { setEditingCell(null); setEditingValue(null); }} 
+            onFinishEdit={onFinishEdit} 
             onSelectRow={selectRow} 
             onSelectCol={selectCol} 
           />

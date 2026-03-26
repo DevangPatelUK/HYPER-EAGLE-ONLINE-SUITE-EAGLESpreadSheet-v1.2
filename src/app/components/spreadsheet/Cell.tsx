@@ -51,16 +51,35 @@ export const Cell = memo(({
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
-      if (initialValue === null) inputRef.current.select();
+      if (initialValue === null) {
+        inputRef.current.select();
+      } else {
+        // Position cursor at the end if we started editing by typing
+        inputRef.current.setSelectionRange(inputRef.current.value.length, inputRef.current.value.length);
+      }
     }
   }, [isEditing, initialValue]);
 
-  const handleBlur = () => {
+  const handleFinish = (nextKey?: string) => {
     if (isEditing) {
       const validation = validateValue(localValue, data?.validation);
-      if (validation.valid) onUpdate(coord, localValue);
-      else toast({ title: 'Invalid Input', description: validation.message, variant: 'destructive' });
-      onFinishEdit();
+      if (validation.valid) {
+        onUpdate(coord, localValue);
+        onFinishEdit(nextKey);
+      } else {
+        toast({ title: 'Invalid Input', description: validation.message, variant: 'destructive' });
+        // Don't finish edit if invalid, keep focus
+        inputRef.current?.focus();
+      }
+    }
+  };
+
+  const handleBlur = () => {
+    // Only trigger update on blur if we aren't already handling a key-based finish
+    if (isEditing) {
+       const validation = validateValue(localValue, data?.validation);
+       if (validation.valid) onUpdate(coord, localValue);
+       onFinishEdit();
     }
   };
 
@@ -91,11 +110,27 @@ export const Cell = memo(({
             ref={inputRef}
             className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white"
             value={localValue}
-            onChange={(e) => { setLocalValue(e.target.value); setShowAutocomplete(e.target.value.startsWith('=')); }}
+            onChange={(e) => { 
+              setLocalValue(e.target.value); 
+              setShowAutocomplete(e.target.value.startsWith('=')); 
+            }}
             onBlur={handleBlur}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') handleBlur(); if (e.key === 'Escape') onFinishEdit(); }}
+            onKeyDown={(e) => { 
+              if (e.key === 'Enter' || e.key === 'Tab') {
+                e.preventDefault();
+                handleFinish(e.key);
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                onFinishEdit();
+              }
+            }}
           />
-          <FormulaAutocomplete inputValue={localValue} isOpen={showAutocomplete} onSelect={(f) => { setLocalValue(`=${f}(`); setShowAutocomplete(false); }} onClose={() => setShowAutocomplete(false)} />
+          <FormulaAutocomplete 
+            inputValue={localValue} 
+            isOpen={showAutocomplete} 
+            onSelect={(f) => { setLocalValue(`=${f}(`); setShowAutocomplete(false); }} 
+            onClose={() => setShowAutocomplete(false)} 
+          />
         </div>
       ) : (
         <span className="truncate">{formatCellValue(data?.value || '', data?.format)}</span>

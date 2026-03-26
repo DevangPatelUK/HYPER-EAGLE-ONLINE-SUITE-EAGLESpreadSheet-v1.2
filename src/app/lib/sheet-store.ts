@@ -106,6 +106,29 @@ export function useSheetStore(rows: number, cols: number) {
     pushToHistory(recalculateAll(newWb));
   }, [activeSheetId, workbook, recalculateAll, pushToHistory]);
 
+  const moveSelection = useCallback((key: string) => {
+    if (!selectionAnchor) return;
+    const current = coordinateToIndex(selectionAnchor)!;
+    let { row, col } = current;
+
+    if (key === 'ArrowUp') row = Math.max(0, row - 1);
+    if (key === 'ArrowDown' || key === 'Enter') row = Math.min(rows - 1, row + 1);
+    if (key === 'ArrowLeft') col = Math.max(0, col - 1);
+    if (key === 'ArrowRight' || key === 'Tab') col = Math.min(cols - 1, col + 1);
+
+    const next = indexToCoordinate(row, col);
+    setSelectionAnchor(next);
+    setSelectionFocus(next);
+  }, [selectionAnchor, rows, cols]);
+
+  const finishEdit = useCallback((nextKey?: string) => {
+    setEditingCell(null);
+    setEditingValue(null);
+    if (nextKey) {
+      moveSelection(nextKey);
+    }
+  }, [moveSelection]);
+
   const handleMouseDown = (coord: string, shiftKey: boolean = false) => {
     if (editingCell === coord) return;
     const cell = data[coord];
@@ -140,20 +163,14 @@ export function useSheetStore(rows: number, cols: number) {
     if (editingCell) return;
     const cmdKey = e.metaKey || e.ctrlKey;
     if (cmdKey && e.key.toLowerCase() === 'z') { e.shiftKey ? redo() : undo(); e.preventDefault(); return; }
+    
     if (!selectionAnchor) return;
-    const currentFocus = selectionFocus || selectionAnchor;
-    const current = coordinateToIndex(currentFocus)!;
-    let { row, col } = current;
 
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
-      if (e.key === 'ArrowUp') row = Math.max(0, row - 1);
-      if (e.key === 'ArrowDown' || e.key === 'Enter') row = Math.min(rows - 1, row + 1);
-      if (e.key === 'ArrowLeft') col = Math.max(0, col - 1);
-      if (e.key === 'ArrowRight' || e.key === 'Tab') col = Math.min(cols - 1, col + 1);
-      const next = indexToCoordinate(row, col);
-      if (e.shiftKey) setSelectionFocus(next); else { setSelectionAnchor(next); setSelectionFocus(next); }
+      moveSelection(e.key);
       e.preventDefault();
     } else if (e.key.length === 1 && !cmdKey && !e.altKey) {
+      // Type-to-edit implementation
       setEditingCell(selectionAnchor);
       setEditingValue(e.key);
       e.preventDefault();
@@ -166,7 +183,7 @@ export function useSheetStore(rows: number, cols: number) {
   return {
     workbook, setWorkbook, activeSheetId, setActiveSheetId, data,
     selectedCell: selectionAnchor, selectionRange, editingCell, setEditingCell, editingValue, setEditingValue,
-    updateCell, handleMouseDown, handleMouseEnter, handleMouseUp, handleKeyDown,
+    updateCell, handleMouseDown, handleMouseEnter, handleMouseUp, handleKeyDown, onFinishEdit: finishEdit,
     addSheet: () => pushToHistory({ ...workbook, [`sheet-${Date.now()}`]: { id: `sheet-${Date.now()}`, name: `Sheet${Object.keys(workbook).length + 1}`, data: {}, charts: [] } }),
     renameSheet: (id: string, name: string) => { const nwb = { ...workbook }; nwb[id].name = name; setWorkbook(nwb); isDirty.current = true; },
     removeSheet: (id: string) => { if (Object.keys(workbook).length > 1) { const nwb = { ...workbook }; delete nwb[id]; setWorkbook(recalculateAll(nwb)); if (activeSheetId === id) setActiveSheetId(Object.keys(nwb)[0]); isDirty.current = true; } },
