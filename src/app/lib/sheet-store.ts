@@ -17,6 +17,7 @@ import {
 const HISTORY_LIMIT = 30;
 const STORAGE_KEY_PAST = 'sheetflow_history_past';
 const STORAGE_KEY_FUTURE = 'sheetflow_history_future';
+const STORAGE_KEY_WORKBOOK = 'sheetflow_current_workbook';
 
 interface ClipboardData {
   rows: number;
@@ -43,37 +44,42 @@ export function useSheetStore(rows: number, cols: number) {
   const activeSheet = workbook[activeSheetId];
   const data = activeSheet?.data || {};
 
+  // Load state from localStorage on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
     const savedPast = localStorage.getItem(STORAGE_KEY_PAST);
     const savedFuture = localStorage.getItem(STORAGE_KEY_FUTURE);
+    const savedWorkbook = localStorage.getItem(STORAGE_KEY_WORKBOOK);
     
     if (savedPast) {
-      try {
-        setPast(JSON.parse(savedPast));
-      } catch (e) {
-        console.error('Failed to load past history:', e);
-      }
+      try { setPast(JSON.parse(savedPast)); } catch (e) { console.error('Failed to load past history:', e); }
     }
     
     if (savedFuture) {
-      try {
-        setFuture(JSON.parse(savedFuture));
-      } catch (e) {
-        console.error('Failed to load future history:', e);
-      }
+      try { setFuture(JSON.parse(savedFuture)); } catch (e) { console.error('Failed to load future history:', e); }
+    }
+
+    if (savedWorkbook) {
+      try { 
+        const parsed = JSON.parse(savedWorkbook);
+        setWorkbook(parsed);
+        const firstId = Object.keys(parsed)[0];
+        if (firstId) setActiveSheetId(firstId);
+      } catch (e) { console.error('Failed to recover workbook:', e); }
     }
     
     setIsHistoryLoaded(true);
   }, []);
 
+  // Persist state to localStorage on changes
   useEffect(() => {
     if (!isHistoryLoaded || typeof window === 'undefined') return;
     
     localStorage.setItem(STORAGE_KEY_PAST, JSON.stringify(past));
     localStorage.setItem(STORAGE_KEY_FUTURE, JSON.stringify(future));
-  }, [past, future, isHistoryLoaded]);
+    localStorage.setItem(STORAGE_KEY_WORKBOOK, JSON.stringify(workbook));
+  }, [past, future, workbook, isHistoryLoaded]);
 
   const selectionRange = useMemo(() => {
     if (!selectionAnchor || !selectionFocus) return selectionAnchor ? [selectionAnchor] : [];
@@ -97,7 +103,6 @@ export function useSheetStore(rows: number, cols: number) {
 
   const recalculateAll = useCallback((wb: WorkbookData) => {
     const updatedWb = { ...wb };
-    // Simple 3-pass resolution for formula dependencies
     for (let i = 0; i < 3; i++) {
       Object.keys(updatedWb).forEach(sheetId => {
         const sheet = updatedWb[sheetId];
@@ -514,7 +519,6 @@ export function useSheetStore(rows: number, cols: number) {
       for (let c = minCol; c <= maxCol; c++) {
         const coord = indexToCoordinate(r, c);
         if (data[coord]) {
-          // Store with relative coordinates for easy pasting
           const relativeCoord = `${r - minRow},${c - minCol}`;
           cells[relativeCoord] = { ...data[coord] };
         }
@@ -593,7 +597,6 @@ export function useSheetStore(rows: number, cols: number) {
     const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
     const cmdKey = isMac ? e.metaKey : e.ctrlKey;
 
-    // Clipboard: Copy/Paste
     if (cmdKey && e.key.toLowerCase() === 'c') {
       copyToClipboard();
       e.preventDefault();
@@ -605,7 +608,6 @@ export function useSheetStore(rows: number, cols: number) {
       return;
     }
 
-    // Structural: Insert/Delete
     if (cmdKey && e.shiftKey && (e.key === '+' || e.key === '=')) {
       if (selectionAnchor) insertRow(coordinateToIndex(selectionAnchor)!.row);
       e.preventDefault();
@@ -617,7 +619,6 @@ export function useSheetStore(rows: number, cols: number) {
       return;
     }
 
-    // History: Undo/Redo
     if (cmdKey && e.key.toLowerCase() === 'z') {
       if (e.shiftKey) redo();
       else undo();
@@ -638,13 +639,11 @@ export function useSheetStore(rows: number, cols: number) {
 
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
       if (cmdKey) {
-        // Jump to boundary
         if (e.key === 'ArrowUp') row = 0;
         if (e.key === 'ArrowDown') row = rows - 1;
         if (e.key === 'ArrowLeft') col = 0;
         if (e.key === 'ArrowRight') col = cols - 1;
       } else {
-        // Standard movement
         if (e.key === 'ArrowUp' && row > 0) row--;
         if ((e.key === 'ArrowDown' || e.key === 'Enter') && row < rows - 1) row++;
         if (e.key === 'ArrowLeft' && col > 0) col--;
@@ -671,7 +670,6 @@ export function useSheetStore(rows: number, cols: number) {
       pushToHistory(recalculateAll(newWb));
       e.preventDefault();
     } else if (e.key.length === 1 && !cmdKey && !e.altKey) {
-      // Start editing on alphanumeric key press
       setEditingCell(selectionAnchor);
       setEditingValue(e.key);
       e.preventDefault();

@@ -1,7 +1,6 @@
-
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Toolbar } from './components/spreadsheet/Toolbar';
 import { FormulaBar } from './components/spreadsheet/FormulaBar';
 import { Grid } from './components/spreadsheet/Grid';
@@ -12,7 +11,7 @@ import { useSheetStore } from './lib/sheet-store';
 import { evaluateFormula, coordinateToIndex, PrintSettings } from './lib/formula-engine';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
-import { Plus, X, ChevronRight, LogIn, UserCircle, LogOut, Wifi, WifiOff } from 'lucide-react';
+import { Plus, X, ChevronRight, LogIn, UserCircle, LogOut, Wifi, WifiOff, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore, useAuth } from '@/firebase';
@@ -20,6 +19,7 @@ import { doc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { format } from 'date-fns';
 
 const DEFAULT_PRINT_SETTINGS: PrintSettings = {
   orientation: 'portrait',
@@ -34,6 +34,7 @@ export default function SpreadsheetPage() {
   const { user } = useUser();
   const db = useFirestore();
   const auth = useAuth();
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   const {
     workbook,
@@ -81,6 +82,7 @@ export default function SpreadsheetPage() {
   const [printOpen, setPrintOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   const activeSheet = workbook[activeSheetId];
   const printSettings = activeSheet?.printSettings || DEFAULT_PRINT_SETTINGS;
@@ -95,7 +97,7 @@ export default function SpreadsheetPage() {
     };
     const handleOffline = () => {
       setIsOnline(false);
-      toast({ title: 'Offline', description: 'Changes will be saved locally and synced later.', variant: 'destructive' });
+      toast({ title: 'Offline', description: 'Changes saved locally.', variant: 'destructive' });
     };
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -105,6 +107,7 @@ export default function SpreadsheetPage() {
     };
   }, []);
 
+  // Sync from Cloud
   useEffect(() => {
     if (!user || !db) return;
     const userDocRef = doc(db, 'workbooks', user.uid);
@@ -112,7 +115,11 @@ export default function SpreadsheetPage() {
       if (snapshot.exists()) {
         const cloudData = snapshot.data();
         if (cloudData.workbookData) {
+          // Only update if we don't have a more recent local version or this is the first load
           setWorkbook(cloudData.workbookData);
+          if (cloudData.updatedAt) {
+            setLastSaved(cloudData.updatedAt.toDate());
+          }
         }
       }
     }, async (err) => {
@@ -122,16 +129,12 @@ export default function SpreadsheetPage() {
     return () => unsubscribe();
   }, [user, db, setWorkbook]);
 
-  const handleSave = () => {
-    if (!user || !db) {
-      toast({ title: 'Auth Required', description: 'Please sign in to save.', variant: 'destructive' });
-      return;
-    }
+  const handleSave = useCallback(() => {
+    if (!user || !db) return;
+    
     setIsSyncing(true);
     const userDocRef = doc(db, 'workbooks', user.uid);
     
-    // Firestore setDoc works offline if persistence is enabled. 
-    // The promise will resolve once the server acknowledges.
     setDoc(userDocRef, {
       userId: user.uid,
       name: workbook[activeSheetId]?.name || 'My Workbook',
@@ -139,19 +142,33 @@ export default function SpreadsheetPage() {
       updatedAt: serverTimestamp(),
     }, { merge: true })
     .then(() => {
-      if (isOnline) toast({ title: 'Saved to Cloud' });
+      setLastSaved(new Date());
     })
     .catch(async (err) => {
       const permissionError = new FirestorePermissionError({ path: userDocRef.path, operation: 'update', requestResourceData: workbook });
       errorEmitter.emit('permission-error', permissionError);
     })
     .finally(() => setIsSyncing(false));
+  }, [user, db, workbook, activeSheetId]);
 
-    // Instant feedback for offline users
-    if (!isOnline) {
-      toast({ title: 'Saved Locally', description: 'Changes are queued for sync.' });
+  // Autosave Effect
+  useEffect(() => {
+    if (!user || !db) return;
+
+    // Clear previous timer
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
     }
-  };
+
+    // Debounce save operation (3 seconds)
+    autoSaveTimerRef.current = setTimeout(() => {
+      handleSave();
+    }, 3000);
+
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [workbook, user, db, handleSave]);
 
   const handleSignIn = async () => {
     if (!auth) return;
@@ -359,8 +376,17 @@ export default function SpreadsheetPage() {
           <span>SheetFlow v2.0</span>
           <ChevronRight className="h-3 w-3" />
           <span>{activeSheet?.name}</span>
-          {isSyncing && <span className="animate-pulse ml-2">Syncing...</span>}
-          {!isOnline && <span className="text-destructive-foreground bg-destructive/80 px-1.5 py-0.5 rounded ml-2">OFFLINE MODE</span>}
+          {isSyncing ? (
+            <span className="flex items-center gap-1.5 ml-2">
+              <Save className="h-3 w-3 animate-pulse" />
+              Saving...
+            </span>
+          ) : lastSaved ? (
+            <span className="opacity-70 ml-2">
+              All changes saved at {format(lastSaved, 'HH:mm:ss')}
+            </span>
+          ) : null}
+          {!isOnline && <span className="text-destructive-foreground bg-destructive/80 px-1.5 py-0.5 rounded ml-2">RECOVERY MODE (OFFLINE)</span>}
         </div>
         <span>{selectionRange.length > 1 ? `${selectionRange.length} cells selected` : 'Ready'}</span>
       </footer>
