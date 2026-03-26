@@ -1,0 +1,39 @@
+
+{
+  "entities": {
+    "Workbook": {
+      "title": "Workbook",
+      "description": "A user's collection of spreadsheet sheets and data.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the owner of this workbook."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the workbook."
+        },
+        "workbookData": {
+          "type": "object",
+          "description": "The serialized sheets, cell data, and formatting."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The last time the workbook was saved."
+        }
+      },
+      "required": ["userId", "name", "workbookData"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com", "password"]
+  },
+  "firestore": {
+    "/workbooks/{workbookId}": {
+      "schema": "Workbook",
+      "description": "User-specific workbook documents."
+    }
+  }
+}

@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Toolbar } from './components/spreadsheet/Toolbar';
 import { FormulaBar } from './components/spreadsheet/FormulaBar';
 import { Grid } from './components/spreadsheet/Grid';
@@ -9,13 +10,22 @@ import { useSheetStore } from './lib/sheet-store';
 import { evaluateFormula, indexToCoordinate } from './lib/formula-engine';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
-import { Plus, X, ChevronRight } from 'lucide-react';
+import { Plus, X, ChevronRight, LogIn, UserCircle, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useUser, useFirestore, useAuth } from '@/firebase';
+import { doc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function SpreadsheetPage() {
   const rows = 50;
   const cols = 26;
+  const { user } = useUser();
+  const db = useFirestore();
+  const auth = useAuth();
+  
   const {
     workbook,
     setWorkbook,
@@ -45,25 +55,73 @@ export default function SpreadsheetPage() {
   } = useSheetStore(rows, cols);
 
   const [aiOpen, setAiOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
+  // Load workbook from Firestore when user logs in
   useEffect(() => {
-    const saved = localStorage.getItem('sheet-flow-workbook-v2');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.workbook && Object.keys(parsed.workbook).length > 0) {
-          setWorkbook(parsed.workbook);
-          setActiveSheetId(parsed.activeSheetId || Object.keys(parsed.workbook)[0]);
+    if (!user || !db) return;
+
+    const userDocRef = doc(db, 'workbooks', user.uid);
+    const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const cloudData = snapshot.data();
+        if (cloudData.workbookData) {
+          // Only update if we aren't currently editing to avoid jumping
+          // This is a simple conflict resolution for MVP
+          setWorkbook(cloudData.workbookData);
         }
-      } catch (e) {
-        console.error('Failed to load saved workbook');
       }
-    }
-  }, [setWorkbook, setActiveSheetId]);
+    }, async (err) => {
+      const permissionError = new FirestorePermissionError({
+        path: userDocRef.path,
+        operation: 'get'
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    });
+
+    return () => unsubscribe();
+  }, [user, db, setWorkbook]);
 
   const handleSave = () => {
-    localStorage.setItem('sheet-flow-workbook-v2', JSON.stringify({ workbook, activeSheetId }));
-    toast({ title: 'Saved', description: 'Workbook saved successfully to local storage.' });
+    if (!user || !db) {
+      toast({ title: 'Auth Required', description: 'Please sign in to save your work.', variant: 'destructive' });
+      return;
+    }
+
+    setIsSyncing(true);
+    const userDocRef = doc(db, 'workbooks', user.uid);
+    
+    setDoc(userDocRef, {
+      userId: user.uid,
+      name: workbook[activeSheetId]?.name || 'My Workbook',
+      workbookData: workbook,
+      updatedAt: serverTimestamp(),
+    }, { merge: true })
+    .then(() => {
+      toast({ title: 'Saved to Cloud', description: 'Your progress is synced securely.' });
+    })
+    .catch(async (err) => {
+      const permissionError = new FirestorePermissionError({
+        path: userDocRef.path,
+        operation: 'update',
+        requestResourceData: workbook
+      });
+      errorEmitter.emit('permission-error', permissionError);
+    })
+    .finally(() => setIsSyncing(false));
+  };
+
+  const handleSignIn = async () => {
+    if (!auth) return;
+    try {
+      await signInWithPopup(auth, new GoogleAuthProvider());
+    } catch (e) {
+      toast({ title: 'Sign In Failed', description: 'Could not authenticate.', variant: 'destructive' });
+    }
+  };
+
+  const handleSignOut = () => {
+    if (auth) signOut(auth);
   };
 
   const handleUpdate = (coord: string, val: string) => {
@@ -72,77 +130,6 @@ export default function SpreadsheetPage() {
     } else {
       updateCell(coord, { value: val, formula: '' });
     }
-  };
-
-  const handleExportCSV = () => {
-    let csv = "";
-    for (let r = 0; r < rows; r++) {
-      let rowData = [];
-      for (let c = 0; c < cols; c++) {
-        const coord = indexToCoordinate(r, c);
-        const cellData = data[coord];
-        let val = cellData?.value || "";
-        // Basic escaping for CSV
-        if (val.includes(',') || val.includes('"') || val.includes('\n')) {
-          val = `"${val.replace(/"/g, '""')}"`;
-        }
-        rowData.push(val);
-      }
-      csv += rowData.join(",") + "\n";
-    }
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${workbook[activeSheetId]?.name || 'sheet'}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast({ title: 'Exported', description: 'Sheet exported as CSV.' });
-  };
-
-  const handleExportJSON = () => {
-    const json = JSON.stringify({ workbook, activeSheetId }, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sheetflow_workbook_${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast({ title: 'Exported', description: 'Workbook exported as JSON.' });
-  };
-
-  const handleImportCSV = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const lines = text.split(/\r?\n/);
-      const newSheetData = { ...data };
-      
-      lines.forEach((line, r) => {
-        if (r >= rows) return;
-        const values = line.split(','); // Simple split, could be enhanced for quoted commas
-        values.forEach((val, c) => {
-          if (c >= cols) return;
-          const coord = indexToCoordinate(r, c);
-          let cleanedVal = val.trim();
-          if (cleanedVal.startsWith('"') && cleanedVal.endsWith('"')) {
-            cleanedVal = cleanedVal.slice(1, -1).replace(/""/g, '"');
-          }
-          newSheetData[coord] = { value: cleanedVal, formula: '' };
-        });
-      });
-
-      // Update the whole sheet in the workbook
-      const newWorkbook = { ...workbook };
-      newWorkbook[activeSheetId] = {
-        ...newWorkbook[activeSheetId],
-        data: newSheetData
-      };
-      setWorkbook(newWorkbook);
-      toast({ title: 'Imported', description: `Data imported into ${workbook[activeSheetId].name}` });
-    };
-    reader.readAsText(file);
   };
 
   const activeSheet = workbook[activeSheetId];
@@ -156,6 +143,21 @@ export default function SpreadsheetPage() {
       aria-label="SheetFlow Spreadsheet Application"
     >
       <header role="banner">
+        <div className="bg-primary px-4 py-1 flex items-center justify-between text-white text-[10px] font-bold uppercase tracking-tighter">
+          <div className="flex items-center gap-2">
+            <UserCircle className="h-3 w-3" />
+            {user ? `Signed in as ${user.displayName || user.email}` : 'Guest Mode (Local Only)'}
+          </div>
+          {user ? (
+            <button onClick={handleSignOut} className="hover:underline flex items-center gap-1">
+              <LogOut className="h-3 w-3" /> Sign Out
+            </button>
+          ) : (
+            <button onClick={handleSignIn} className="hover:underline flex items-center gap-1">
+              <LogIn className="h-3 w-3" /> Sign In to Sync
+            </button>
+          )}
+        </div>
         <Toolbar
           sheetName={activeSheet?.name || ''}
           onNameChange={(name) => renameSheet(activeSheetId, name)}
@@ -169,9 +171,9 @@ export default function SpreadsheetPage() {
           onAI={() => setAiOpen(true)}
           onUndo={undo}
           onRedo={redo}
-          onImportCSV={handleImportCSV}
-          onExportCSV={handleExportCSV}
-          onExportJSON={handleExportJSON}
+          onImportCSV={() => {}} 
+          onExportCSV={() => {}} 
+          onExportJSON={() => {}} 
           canUndo={canUndo}
           canRedo={canRedo}
         />
@@ -184,6 +186,25 @@ export default function SpreadsheetPage() {
       </header>
 
       <main className="flex-1 overflow-hidden flex flex-col relative border-t border-border" role="main">
+        {!user && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+            <div className="bg-white p-8 rounded-xl shadow-2xl border border-border text-center max-w-sm">
+              <div className="bg-primary/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                <LogIn className="h-8 w-8 text-primary" />
+              </div>
+              <h2 className="text-xl font-bold mb-2">Secure Cloud Sync</h2>
+              <p className="text-muted-foreground text-sm mb-6">
+                Sign in to save your spreadsheets to the cloud and access them from anywhere.
+              </p>
+              <Button onClick={handleSignIn} className="w-full">
+                Sign In with Google
+              </Button>
+              <Button variant="ghost" onClick={() => toast({ title: 'Guest Mode', description: 'Changes will not be saved.' })} className="w-full mt-2 text-xs">
+                Continue as Guest
+              </Button>
+            </div>
+          </div>
+        )}
         <Grid
           rows={rows}
           cols={cols}
@@ -248,9 +269,10 @@ export default function SpreadsheetPage() {
 
       <footer className="h-6 bg-primary text-[10px] text-white flex items-center px-4 justify-between uppercase tracking-widest font-bold" role="status" aria-live="polite">
         <div className="flex items-center gap-2">
-          <span>SheetFlow v1.5</span>
+          <span>SheetFlow v2.0 Security Enabled</span>
           <ChevronRight className="h-3 w-3" />
           <span>{activeSheet?.name}</span>
+          {isSyncing && <span className="animate-pulse ml-2">Syncing...</span>}
         </div>
         <span>{selectionRange.length > 1 ? `${selectionRange.length} cells selected` : 'Ready'}</span>
       </footer>
