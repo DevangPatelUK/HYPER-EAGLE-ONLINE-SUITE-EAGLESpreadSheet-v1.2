@@ -67,8 +67,13 @@ export function useSheetStore(rows: number, cols: number) {
     if (!start || !end) return [selectionAnchor];
 
     const coords: string[] = [];
-    for (let r = Math.min(start.row, end.row); r <= Math.max(start.row, end.row); r++) {
-      for (let c = Math.min(start.col, end.col); c <= Math.max(start.col, end.col); c++) {
+    const minRow = Math.min(start.row, end.row);
+    const maxRow = Math.max(start.row, end.row);
+    const minCol = Math.min(start.col, end.col);
+    const maxCol = Math.max(start.col, end.col);
+
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
         coords.push(indexToCoordinate(r, c));
       }
     }
@@ -162,10 +167,37 @@ export function useSheetStore(rows: number, cols: number) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (editingCell) return;
     const cmdKey = e.metaKey || e.ctrlKey;
-    if (cmdKey && e.key.toLowerCase() === 'z') { e.shiftKey ? redo() : undo(); e.preventDefault(); return; }
+    
+    // Undo/Redo
+    if (cmdKey && e.key.toLowerCase() === 'z') { 
+      e.shiftKey ? redo() : undo(); 
+      e.preventDefault(); 
+      return; 
+    }
     
     if (!selectionAnchor) return;
 
+    // Clear content on Backspace or Delete
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      if (selectionRange.length > 0) {
+        const newWb = JSON.parse(JSON.stringify(workbook));
+        const sheet = newWb[activeSheetId];
+        let hasChanges = false;
+        selectionRange.forEach(coord => {
+          if (sheet.data[coord] && (sheet.data[coord].value || sheet.data[coord].formula)) {
+            sheet.data[coord] = { ...sheet.data[coord], value: '', formula: '' };
+            hasChanges = true;
+          }
+        });
+        if (hasChanges) {
+          pushToHistory(recalculateAll(newWb));
+        }
+        e.preventDefault();
+      }
+      return;
+    }
+
+    // Navigation
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
       moveSelection(e.key);
       e.preventDefault();
@@ -190,7 +222,7 @@ export function useSheetStore(rows: number, cols: number) {
     undo, redo, canUndo: past.length > 0, canRedo: future.length > 0, isDirty,
     selectRow: (r: number) => { setSelectionAnchor(indexToCoordinate(r, 0)); setSelectionFocus(indexToCoordinate(r, cols - 1)); },
     selectCol: (c: number) => { setSelectionAnchor(indexToCoordinate(0, c)); setSelectionFocus(indexToCoordinate(rows - 1, c)); },
-    mergeSelection: () => {}, // Simplified for refinement
+    mergeSelection: () => {}, 
     unmergeSelection: () => {},
     insertRow: (r: number) => {},
     deleteRow: (r: number) => {},
