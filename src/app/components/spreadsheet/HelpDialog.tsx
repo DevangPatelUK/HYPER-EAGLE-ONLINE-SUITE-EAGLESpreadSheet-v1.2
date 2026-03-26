@@ -24,10 +24,10 @@ export const HelpDialog: React.FC<HelpDialogProps> = ({ open, onOpenChange }) =>
         <DialogHeader className="p-6 pb-2">
           <DialogTitle className="flex items-center gap-2 text-xl">
             <HelpCircle className="h-6 w-6 text-primary" />
-            Spreadsheet Help Guide
+            FEDERAL APEX Help Guide
           </DialogTitle>
           <DialogDescription>
-            Learn about supported formulas and keyboard shortcuts to boost your productivity.
+            Learn about supported formulas and keyboard shortcuts within the APEXELX Suite.
           </DialogDescription>
         </DialogHeader>
 
@@ -87,7 +87,7 @@ export const HelpDialog: React.FC<HelpDialogProps> = ({ open, onOpenChange }) =>
                 </section>
                 
                 <div className="p-4 bg-muted rounded-lg text-xs text-muted-foreground border border-border">
-                  <strong>Pro Tip:</strong> All formulas must start with an equals sign (=). You can use cell references like A1 or ranges like A1:B10.
+                  <strong>FEDERAL APEX TIP:</strong> All formulas must start with an equals sign (=). You can use cell references like A1 or ranges like A1:B10.
                 </div>
               </div>
             </ScrollArea>

@@ -428,7 +428,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <div className="px-2 py-1.5 text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
-                Version 2.0.4
+                FEDERAL APEX SHOP SUITE
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -441,8 +441,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <input
             value={sheetName}
             onChange={(e) => onNameChange(e.target.value)}
-            className="bg-transparent border-none font-semibold text-primary focus:ring-0 text-base w-40 outline-none truncate"
-            placeholder="Untitled Sheet"
+            className="bg-transparent border-none font-semibold text-primary focus:ring-0 text-base w-48 outline-none truncate"
+            placeholder="FEDERAL APEX SHEET"
           />
         </div>
 

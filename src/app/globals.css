@@ -10,7 +10,7 @@
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 222 59% 46%;
+    --primary: 225 63% 49%;
     --primary-foreground: 210 40% 98%;
     --secondary: 225 33% 92%;
     --secondary-foreground: 222 47% 11%;
@@ -22,7 +22,7 @@
     --destructive-foreground: 210 40% 98%;
     --border: 225 20% 88%;
     --input: 225 20% 88%;
-    --ring: 222 59% 46%;
+    --ring: 225 63% 49%;
     --radius: 0.5rem;
   }
   .dark {
@@ -98,7 +98,6 @@
     size: portrait;
   }
 
-  /* Hide headers and sticky elements that cause offset issues in print */
   [role="columnheader"].sticky,
   [role="rowheader"].sticky {
     position: relative !important;
@@ -106,7 +105,6 @@
     left: 0 !important;
   }
 
-  /* Ensure the grid doesn't overflow or clip weirdly */
   main {
     overflow: visible !important;
     display: block !important;
@@ -118,7 +116,6 @@
     width: 100% !important;
   }
 
-  /* Custom scaling if needed */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
