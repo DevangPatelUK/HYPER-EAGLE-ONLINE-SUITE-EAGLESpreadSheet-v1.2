@@ -18,6 +18,12 @@ export type CellData = {
 
 export type SpreadsheetData = Record<string, CellData>;
 
+export type Filter = {
+  colIndex: number;
+  operator: 'contains' | 'gt' | 'lt' | 'eq';
+  value: string;
+};
+
 export type Sheet = {
   id: string;
   name: string;
@@ -26,6 +32,8 @@ export type Sheet = {
   colWidths?: Record<number, number>;
   hiddenRows?: Record<number, boolean>;
   hiddenCols?: Record<number, boolean>;
+  filteredRows?: Record<number, boolean>;
+  filters?: Filter[];
 };
 
 export type WorkbookData = Record<string, Sheet>;

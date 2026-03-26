@@ -47,6 +47,8 @@ export default function SpreadsheetPage() {
     hideRows,
     hideCols,
     sortRange,
+    applyFilter,
+    clearFilters,
     handleMouseDown,
     handleMouseEnter,
     handleMouseUp,
@@ -171,6 +173,8 @@ export default function SpreadsheetPage() {
           onHideCols={handleHideCols}
           onUnhideAll={handleUnhideAll}
           onSort={(dir) => sortRange(dir)}
+          onFilter={(op, val) => selectedCell && applyFilter(coordinateToIndex(selectedCell)!.col, op, val)}
+          onClearFilters={clearFilters}
           onMerge={mergeSelection}
           onUnmerge={unmergeSelection}
           onImportCSV={() => {}} onExportCSV={() => {}} onExportJSON={() => {}}

@@ -43,6 +43,7 @@ export const Grid: React.FC<GridProps> = ({
 }) => {
   const data = activeSheet.data;
   const hiddenRows = activeSheet.hiddenRows || {};
+  const filteredRows = activeSheet.filteredRows || {};
   const hiddenCols = activeSheet.hiddenCols || {};
   const rowHeights = activeSheet.rowHeights || {};
   const colWidths = activeSheet.colWidths || {};
@@ -105,7 +106,7 @@ export const Grid: React.FC<GridProps> = ({
         }}
       >
         {Array.from({ length: rows }).map((_, r) => {
-          if (hiddenRows[r]) return null;
+          if (hiddenRows[r] || filteredRows[r]) return null;
 
           const rowHeight = rowHeights[r] || 32;
 

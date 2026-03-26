@@ -39,7 +39,9 @@ import {
   Split,
   EyeOff,
   Eye,
-  Sparkles
+  Sparkles,
+  Filter,
+  FilterX
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -59,6 +61,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent
 } from "@/components/ui/dropdown-menu";
+import { coordinateToIndex } from '@/app/lib/formula-engine';
 
 interface ToolbarProps {
   onBold: () => void;
@@ -84,6 +87,8 @@ interface ToolbarProps {
   onHideCols: () => void;
   onUnhideAll: () => void;
   onSort: (dir: 'asc' | 'desc') => void;
+  onFilter: (op: 'contains' | 'gt' | 'lt' | 'eq', val: string) => void;
+  onClearFilters: () => void;
   onMerge: () => void;
   onUnmerge: () => void;
   onImportCSV: (file: File) => void;
@@ -139,6 +144,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onHideCols,
   onUnhideAll,
   onSort,
+  onFilter,
+  onClearFilters,
   onMerge,
   onUnmerge,
   onImportCSV,
@@ -165,6 +172,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({
     const input = window.prompt("Enter options separated by commas (e.g. Yes,No,Maybe)");
     if (input) {
       onType('select', input.split(',').map(s => s.trim()));
+    }
+  };
+
+  const promptFilter = (op: 'contains' | 'gt' | 'lt' | 'eq') => {
+    const val = window.prompt(`Enter value for filter (${op}):`);
+    if (val !== null) {
+      onFilter(op, val);
     }
   };
 
@@ -258,6 +272,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <DropdownMenuContent align="start" className="min-w-[200px]">
             <DropdownMenuItem onClick={() => onSort('asc')}><ArrowDownAZ className="h-4 w-4 mr-2" />Sort A-Z</DropdownMenuItem>
             <DropdownMenuItem onClick={() => onSort('desc')}><ArrowUpAZ className="h-4 w-4 mr-2" />Sort Z-A</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger><Filter className="h-4 w-4 mr-2" />Filter Selection</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-[150px]">
+                <DropdownMenuItem onClick={() => promptFilter('contains')}>Contains...</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => promptFilter('eq')}>Equals...</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => promptFilter('gt')}>Greater Than...</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => promptFilter('lt')}>Less Than...</DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuItem onClick={onClearFilters}><FilterX className="h-4 w-4 mr-2" />Clear Filters</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         

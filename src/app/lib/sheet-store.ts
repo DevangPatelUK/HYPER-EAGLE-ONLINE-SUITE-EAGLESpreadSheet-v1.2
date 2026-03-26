@@ -7,7 +7,8 @@ import {
   indexToCoordinate, 
   coordinateToIndex, 
   Sheet, 
-  WorkbookData 
+  WorkbookData,
+  Filter
 } from './formula-engine';
 
 export function useSheetStore(rows: number, cols: number) {
@@ -399,6 +400,58 @@ export function useSheetStore(rows: number, cols: number) {
     pushToHistory(recalculateAll(newWb));
   }, [selectionRange, activeSheetId, workbook, recalculateAll, pushToHistory]);
 
+  const applyFilter = useCallback((colIndex: number, operator: Filter['operator'], value: string) => {
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    if (!sheet) return;
+
+    const currentFilters = [...(sheet.filters || [])];
+    const existingIdx = currentFilters.findIndex(f => f.colIndex === colIndex);
+    if (existingIdx >= 0) {
+      currentFilters[existingIdx] = { colIndex, operator, value };
+    } else {
+      currentFilters.push({ colIndex, operator, value });
+    }
+
+    // Compute hidden rows based on all filters
+    const newFilteredRows: Record<number, boolean> = {};
+    for (let r = 0; r < rows; r++) {
+      let isVisible = true;
+      for (const filter of currentFilters) {
+        const coord = indexToCoordinate(r, filter.colIndex);
+        const cellValue = sheet.data[coord]?.value || '';
+        
+        switch (filter.operator) {
+          case 'contains':
+            if (!cellValue.toLowerCase().includes(filter.value.toLowerCase())) isVisible = false;
+            break;
+          case 'eq':
+            if (cellValue !== filter.value) isVisible = false;
+            break;
+          case 'gt':
+            if (parseFloat(cellValue) <= parseFloat(filter.value)) isVisible = false;
+            break;
+          case 'lt':
+            if (parseFloat(cellValue) >= parseFloat(filter.value)) isVisible = false;
+            break;
+        }
+        if (!isVisible) break;
+      }
+      if (!isVisible) newFilteredRows[r] = true;
+    }
+
+    newWb[activeSheetId] = { ...sheet, filters: currentFilters, filteredRows: newFilteredRows };
+    pushToHistory(newWb);
+  }, [activeSheetId, workbook, pushToHistory, rows]);
+
+  const clearFilters = useCallback(() => {
+    const newWb = { ...workbook };
+    const sheet = newWb[activeSheetId];
+    if (!sheet) return;
+    newWb[activeSheetId] = { ...sheet, filters: [], filteredRows: {} };
+    pushToHistory(newWb);
+  }, [activeSheetId, workbook, pushToHistory]);
+
   const addSheet = () => {
     const id = `sheet-${Date.now()}`;
     const name = `Sheet${Object.keys(workbook).length + 1}`;
@@ -534,6 +587,8 @@ export function useSheetStore(rows: number, cols: number) {
     hideRows,
     hideCols,
     sortRange,
+    applyFilter,
+    clearFilters,
     handleMouseDown,
     handleMouseEnter,
     handleMouseUp,
