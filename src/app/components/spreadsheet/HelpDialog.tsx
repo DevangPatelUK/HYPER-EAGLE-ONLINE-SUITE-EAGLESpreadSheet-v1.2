@@ -96,6 +96,7 @@ export const HelpDialog: React.FC<HelpDialogProps> = ({ open, onOpenChange }) =>
                   <div className="grid gap-3">
                     <ShortcutItem keys={['Ctrl', 'C']} description="Copy selection" />
                     <ShortcutItem keys={['Ctrl', 'V']} description="Paste selection" />
+                    <ShortcutItem keys={['Ctrl', 'T']} description="Format as Table" />
                     <ShortcutItem keys={['Ctrl', 'Z']} description="Undo" />
                     <ShortcutItem keys={['Backspace']} description="Clear cell content" />
                   </div>

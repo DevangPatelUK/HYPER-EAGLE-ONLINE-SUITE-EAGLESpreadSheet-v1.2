@@ -44,7 +44,8 @@ import {
   FileText,
   FileCode,
   Combine,
-  Split
+  Split,
+  Table as TableIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -99,6 +100,7 @@ interface ToolbarProps {
   onClearFilters: () => void;
   onMerge: () => void;
   onUnmerge: () => void;
+  onFormatAsTable: () => void;
   onAddChart: (type: ChartType) => void;
   onImportCSV: (file: File) => void;
   onExportCSV: () => void;
@@ -176,6 +178,7 @@ export const Toolbar = memo(({
   onToggleProtectSheet,
   onMerge,
   onUnmerge,
+  onFormatAsTable,
   onValidation,
   onConditionalFormat,
   onExportCSV,
@@ -276,6 +279,7 @@ export const Toolbar = memo(({
                 <DropdownMenuItem onSelect={() => onAddChart('pie')}>Pie Chart</DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+            <DropdownMenuItem onSelect={onFormatAsTable}><TableIcon className="h-4 w-4 mr-2" />Format as Table (Ctrl+T)</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => onValidation({ type: 'number', allowEmpty: true })}>
               <TableProperties className="h-4 w-4 mr-2" /> Data Validation
             </DropdownMenuItem>

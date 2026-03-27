@@ -101,6 +101,42 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     commitChange(recalculateAll(newWb));
   }, [activeSheetId, workbook, commitChange, recalculateAll]);
 
+  const formatAsTable = useCallback(() => {
+    if (!selectionAnchor || !selectionFocus) return;
+    const start = coordinateToIndex(selectionAnchor)!;
+    const end = coordinateToIndex(selectionFocus)!;
+    
+    const minRow = Math.min(start.row, end.row);
+    const maxRow = Math.max(start.row, end.row);
+    const minCol = Math.min(start.col, end.col);
+    const maxCol = Math.max(start.col, end.col);
+
+    const newWb = JSON.parse(JSON.stringify(workbook));
+    const sheet = newWb[activeSheetId];
+
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        const coord = indexToCoordinate(r, c);
+        const cell = sheet.data[coord] || { value: '', formula: '' };
+        
+        if (r === minRow) {
+          // Header Style
+          cell.backgroundColor = '#16a34a'; // Emerald 600
+          cell.textColor = '#ffffff';
+          cell.bold = true;
+          cell.align = 'center';
+        } else {
+          // Zebra Striping
+          cell.backgroundColor = (r - minRow) % 2 === 0 ? '#f0fdf4' : ''; 
+          cell.textColor = '';
+          cell.bold = false;
+        }
+        sheet.data[coord] = cell;
+      }
+    }
+    commitChange(newWb);
+  }, [activeSheetId, workbook, selectionAnchor, selectionFocus, commitChange]);
+
   const moveSelection = useCallback((key: string, ctrl = false, shift = false) => {
     if (!selectionFocus) return;
     const curr = coordinateToIndex(selectionFocus)!;
@@ -152,6 +188,11 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
         commitChange(recalculateAll(newWb));
       }
       e.preventDefault();
+    } else if (cmd && e.key === 't') {
+      if (!activeSheet.isProtected) {
+        formatAsTable();
+      }
+      e.preventDefault();
     } else if (e.key === 'Backspace' || e.key === 'Delete') {
       if (activeSheet.isProtected) return;
       const newWb = JSON.parse(JSON.stringify(workbook));
@@ -189,7 +230,7 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     workbook, setWorkbook, activeSheetId, setActiveSheetId, activeSheet, data,
     selectedCell: selectionAnchor, selectionRange, editingCell, setEditingCell, editingValue, setEditingValue,
     hoveredCell, setHoveredCell,
-    updateCell, updateCells, handleKeyDown, onFinishEdit, moveSelection, isDirty,
+    updateCell, updateCells, formatAsTable, handleKeyDown, onFinishEdit, moveSelection, isDirty,
     handleMouseDown: (c: string, shift: boolean) => { 
       if (shift) setSelectionFocus(c); 
       else { setSelectionAnchor(c); setSelectionFocus(c); setEditingCell(null); } 
@@ -240,7 +281,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
           maxChars = Math.max(maxChars, val.length);
         }
       });
-      // Heuristic: ~8px per character + padding, minimum 120
       const newWidth = Math.max(120, (maxChars * 8) + 24);
       const n = JSON.parse(JSON.stringify(workbook));
       n[activeSheetId].colWidths = { ...(n[activeSheetId].colWidths || {}), [c]: newWidth };
@@ -261,7 +301,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
           }
         }
       });
-      // Heuristic: ~20px per line + padding, minimum 32
       const newHeight = Math.max(32, (maxLines * 20) + 8);
       const n = JSON.parse(JSON.stringify(workbook));
       n[activeSheetId].rowHeights = { ...(n[activeSheetId].rowHeights || {}), [r]: newHeight };

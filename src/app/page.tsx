@@ -34,7 +34,7 @@ export default function HyperEagleSpreadsheet() {
     updateCell, updateCells, updateRowHeight, updateColWidth, autoUpdateRowHeight, autoUpdateColWidth, handleMouseDown, handleMouseEnter, handleMouseUp,
     handleKeyDown, onFinishEdit, addSheet, renameSheet, removeSheet, undo, redo, canUndo, canRedo,
     isDirty, addChart, removeChart, insertRow, deleteRow, insertCol, deleteCol, freezeRows, freezeCols, hideRows, hideCols, unhideAll, sortRange, toggleProtectSheet,
-    mergeCells, unmergeCells
+    mergeCells, unmergeCells, formatAsTable
   } = useSheetStore(rows, cols);
 
   const [aiOpen, setAiOpen] = useState(false);
@@ -260,6 +260,7 @@ export default function HyperEagleSpreadsheet() {
             const comment = window.prompt("Enter your comment:");
             if (comment) updateCells(selectionRange, { comment });
           }}
+          onFormatAsTable={formatAsTable}
           onValidation={(rule) => updateCells(selectionRange, { validation: rule })}
           onConditionalFormat={(rule) => {
              selectionRange.forEach(c => {
