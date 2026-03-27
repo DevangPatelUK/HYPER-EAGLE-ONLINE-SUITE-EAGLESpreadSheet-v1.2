@@ -35,6 +35,7 @@ import {
   Lock,
   Unlock,
   BarChart3,
+  TableProperties,
   Type as TypeIcon,
   Plus as PlusIcon,
   Minus as MinusIcon,
