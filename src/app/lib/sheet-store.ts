@@ -112,9 +112,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     if (key === 'ArrowRight' || key === 'Tab') col = ctrl ? colsCount - 1 : Math.min(colsCount - 1, col + 1);
 
     const next = indexToCoordinate(row, col);
-    
-    // CRITICAL FIX: Clear hovered cell when selection moves via keyboard
-    // This prevents "Point-and-Type" from sticking to the old cell location
     setHoveredCell(null);
 
     if (shift) setSelectionFocus(next);
@@ -124,7 +121,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
   const onFinishEdit = (nextKey?: string) => {
     setEditingCell(null);
     setEditingValue(null);
-    // CRITICAL FIX: Move selection synchronously to avoid race conditions with next input
     if (nextKey) moveSelection(nextKey);
   };
 
@@ -178,12 +174,10 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       e.preventDefault(); 
     } else if (e.key.length === 1 && !cmd && !e.altKey) { 
       if (activeSheet.isProtected) return;
-      // POINT-AND-TYPE: Use hovered cell if typing without explicit click
       const targetCell = hoveredCell || selectionAnchor;
       if (targetCell) {
         setEditingCell(targetCell); 
         setEditingValue(e.key);
-        // Sync selection state if we started via hover
         setSelectionAnchor(targetCell);
         setSelectionFocus(targetCell);
       }
@@ -235,6 +229,43 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       n[activeSheetId].colWidths = { ...n[activeSheetId].colWidths, [c]: w }; 
       setWorkbook(n); 
       isDirty.current = true; 
+    },
+    autoUpdateColWidth: (c: number) => {
+      const sheet = workbook[activeSheetId];
+      let maxChars = 0;
+      Object.keys(sheet.data).forEach(coord => {
+        const idx = coordinateToIndex(coord);
+        if (idx && idx.col === c) {
+          const val = sheet.data[coord].value || '';
+          maxChars = Math.max(maxChars, val.length);
+        }
+      });
+      // Heuristic: ~8px per character + padding, minimum 120
+      const newWidth = Math.max(120, (maxChars * 8) + 24);
+      const n = JSON.parse(JSON.stringify(workbook));
+      n[activeSheetId].colWidths = { ...(n[activeSheetId].colWidths || {}), [c]: newWidth };
+      commitChange(n);
+    },
+    autoUpdateRowHeight: (r: number) => {
+      const sheet = workbook[activeSheetId];
+      let maxLines = 1;
+      Object.keys(sheet.data).forEach(coord => {
+        const idx = coordinateToIndex(coord);
+        if (idx && idx.row === r) {
+          const cell = sheet.data[coord];
+          if (cell.wrapText) {
+            const val = cell.value || '';
+            const colWidth = (sheet.colWidths && sheet.colWidths[idx.col]) || 120;
+            const charsPerLine = Math.floor(colWidth / 8);
+            maxLines = Math.max(maxLines, Math.ceil(val.length / charsPerLine));
+          }
+        }
+      });
+      // Heuristic: ~20px per line + padding, minimum 32
+      const newHeight = Math.max(32, (maxLines * 20) + 8);
+      const n = JSON.parse(JSON.stringify(workbook));
+      n[activeSheetId].rowHeights = { ...(n[activeSheetId].rowHeights || {}), [r]: newHeight };
+      commitChange(n);
     },
     insertRow: () => {
       if (!selectionAnchor) return;

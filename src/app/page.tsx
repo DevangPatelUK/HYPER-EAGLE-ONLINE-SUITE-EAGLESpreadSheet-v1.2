@@ -30,7 +30,7 @@ export default function HyperEagleSpreadsheet() {
   const {
     workbook, setWorkbook, activeSheetId, setActiveSheetId, activeSheet, data,
     selectedCell, selectionRange, editingCell, setEditingCell, editingValue, setEditingValue,
-    updateCell, updateCells, updateRowHeight, updateColWidth, handleMouseDown, handleMouseEnter, handleMouseUp,
+    updateCell, updateCells, updateRowHeight, updateColWidth, autoUpdateRowHeight, autoUpdateColWidth, handleMouseDown, handleMouseEnter, handleMouseUp,
     handleKeyDown, onFinishEdit, addSheet, renameSheet, removeSheet, undo, redo, canUndo, canRedo,
     isDirty, addChart, removeChart, insertRow, deleteRow, insertCol, deleteCol, freezeRows, freezeCols, hideRows, hideCols, unhideAll, sortRange, toggleProtectSheet,
     mergeCells, unmergeCells
@@ -246,6 +246,8 @@ export default function HyperEagleSpreadsheet() {
           onUpdate={handleUpdate}
           onUpdateRowHeight={updateRowHeight} 
           onUpdateColWidth={updateColWidth}
+          onAutoUpdateRowHeight={autoUpdateRowHeight}
+          onAutoUpdateColWidth={autoUpdateColWidth}
           onFinishEdit={handleCommitEdit} 
           onSelectRow={() => {}} 
           onSelectCol={() => {}}
