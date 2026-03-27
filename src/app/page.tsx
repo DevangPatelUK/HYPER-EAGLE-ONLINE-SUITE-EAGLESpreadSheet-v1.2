@@ -66,6 +66,13 @@ export default function HyperEagleSpreadsheet() {
     document.documentElement.classList.toggle('dark', nextTheme === 'dark');
   };
 
+  const handlePremiumClick = () => {
+    toast({
+      title: "Premium Info",
+      description: "Premium Plan's Coming Soon",
+    });
+  };
+
   useEffect(() => {
     if (!user || !db) return;
     const ref = doc(db, 'workbooks', user.uid);
@@ -176,8 +183,20 @@ export default function HyperEagleSpreadsheet() {
           </div>
           <div className="flex items-center gap-4">
             <button 
-              onClick={toggleTheme}
+              onClick={handlePremiumClick}
               className="flex items-center gap-1.5 hover:text-white/80 transition-colors"
+            >
+              PLAN: <span className="text-yellow-400">FREE</span>
+            </button>
+            <button 
+              onClick={handlePremiumClick}
+              className="flex items-center gap-1.5 hover:text-white/80 transition-colors"
+            >
+              CREDIT: <span className="text-yellow-400">0</span>
+            </button>
+            <button 
+              onClick={toggleTheme}
+              className="flex items-center gap-1.5 hover:text-white/80 transition-colors ml-2"
               title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
             >
               {theme === 'light' ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
