@@ -30,9 +30,10 @@ export default function HyperEagleSpreadsheet() {
   const {
     workbook, setWorkbook, activeSheetId, setActiveSheetId, activeSheet, data,
     selectedCell, selectionRange, editingCell, setEditingCell, editingValue, setEditingValue,
-    updateCell, updateRowHeight, updateColWidth, handleMouseDown, handleMouseEnter, handleMouseUp,
+    updateCell, updateCells, updateRowHeight, updateColWidth, handleMouseDown, handleMouseEnter, handleMouseUp,
     handleKeyDown, onFinishEdit, addSheet, renameSheet, removeSheet, undo, redo, canUndo, canRedo,
-    isDirty, addChart, removeChart, insertRow, deleteRow, insertCol, deleteCol, freezeRows, freezeCols, hideRows, hideCols, unhideAll, sortRange, toggleProtectSheet
+    isDirty, addChart, removeChart, insertRow, deleteRow, insertCol, deleteCol, freezeRows, freezeCols, hideRows, hideCols, unhideAll, sortRange, toggleProtectSheet,
+    mergeCells, unmergeCells
   } = useSheetStore(rows, cols);
 
   const [aiOpen, setAiOpen] = useState(false);
@@ -125,7 +126,7 @@ export default function HyperEagleSpreadsheet() {
 
   const handlePrintClick = () => {
     toast({
-      title: "Feature Disabled",
+      title: "Stability Warning",
       description: "(Might Freeze Whole Software, we are working to get it Back Up soon)",
       variant: "destructive"
     });
@@ -169,14 +170,14 @@ export default function HyperEagleSpreadsheet() {
         <Toolbar
           sheetName={activeSheet.name} 
           onNameChange={(n) => renameSheet(activeSheetId, n)}
-          onBold={() => selectionRange.forEach(c => updateCell(c, { bold: !data[c]?.bold }))}
-          onItalic={() => selectionRange.forEach(c => updateCell(c, { italic: !data[c]?.italic }))}
-          onUnderline={() => selectionRange.forEach(c => updateCell(c, { underline: !data[c]?.underline }))}
-          onWrapText={() => selectionRange.forEach(c => updateCell(c, { wrapText: !data[c]?.wrapText }))}
-          onAlign={(a) => selectionRange.forEach(c => updateCell(c, { align: a }))}
-          onFormat={(f) => selectionRange.forEach(c => updateCell(c, { format: f }))}
-          onBgColor={(bg) => selectionRange.forEach(c => updateCell(c, { backgroundColor: bg }))}
-          onTextColor={(tc) => selectionRange.forEach(c => updateCell(c, { textColor: tc }))}
+          onBold={() => updateCells(selectionRange, { bold: !data[selectionRange[0]]?.bold })}
+          onItalic={() => updateCells(selectionRange, { italic: !data[selectionRange[0]]?.italic })}
+          onUnderline={() => updateCells(selectionRange, { underline: !data[selectionRange[0]]?.underline })}
+          onWrapText={() => updateCells(selectionRange, { wrapText: !data[selectionRange[0]]?.wrapText })}
+          onAlign={(a) => updateCells(selectionRange, { align: a })}
+          onFormat={(f) => updateCells(selectionRange, { format: f })}
+          onBgColor={(bg) => updateCells(selectionRange, { backgroundColor: bg })}
+          onTextColor={(tc) => updateCells(selectionRange, { textColor: tc })}
           onNew={addSheet} 
           onSave={handleSave} 
           onDelete={() => removeSheet(activeSheetId)}
@@ -188,12 +189,12 @@ export default function HyperEagleSpreadsheet() {
           canUndo={canUndo} 
           canRedo={canRedo}
           onAddChart={addChart} 
-          onClear={() => selectionRange.forEach(c => updateCell(c, { value: '', formula: '' }))}
+          onClear={() => updateCells(selectionRange, { value: '', formula: '' })}
           onInsertRow={insertRow} 
           onDeleteRow={deleteRow}
           onInsertCol={insertCol}
           onDeleteCol={deleteCol}
-          onLock={(l) => selectionRange.forEach(c => updateCell(c, { isLocked: l }))}
+          onLock={(l) => updateCells(selectionRange, { isLocked: l })}
           isSheetProtected={!!activeSheet.isProtected} 
           onToggleProtectSheet={toggleProtectSheet}
           onHideRows={hideRows} 
@@ -204,21 +205,23 @@ export default function HyperEagleSpreadsheet() {
           onSort={sortRange} 
           onAddComment={() => {
             const comment = window.prompt("Enter your comment:");
-            if (comment) selectionRange.forEach(c => updateCell(c, { comment }));
+            if (comment) updateCells(selectionRange, { comment });
           }}
-          onValidation={(rule) => selectionRange.forEach(c => updateCell(c, { validation: rule }))}
-          onConditionalFormat={(rule) => selectionRange.forEach(c => {
-             const existing = data[c]?.conditionalFormats || [];
-             updateCell(c, { conditionalFormats: rule ? [...existing, rule] : [] });
-          })}
+          onValidation={(rule) => updateCells(selectionRange, { validation: rule })}
+          onConditionalFormat={(rule) => {
+             selectionRange.forEach(c => {
+               const existing = data[c]?.conditionalFormats || [];
+               updateCell(c, { conditionalFormats: rule ? [...existing, rule] : [] });
+             });
+          }}
           onFilter={(op, v) => {}} 
           onClearFilters={() => {}} 
-          onMerge={() => {}} 
-          onUnmerge={() => {}}
+          onMerge={mergeCells} 
+          onUnmerge={unmergeCells}
           onImportCSV={() => {}} 
           onExportCSV={() => {}} 
           onExportJSON={() => {}} 
-          onType={(t, opts) => selectionRange.forEach(c => updateCell(c, { type: t, options: opts }))} 
+          onType={(t, opts) => updateCells(selectionRange, { type: t, options: opts })} 
         />
         <FormulaBar 
           selectedCoord={selectedCell} 

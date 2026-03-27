@@ -18,8 +18,6 @@ const STORAGE_KEY = 'hypreagle_v1_workbook';
 
 interface ClipboardData {
   cells: Record<string, CellData>;
-  rowCount: number;
-  colCount: number;
 }
 
 export function useSheetStore(rowsCount: number, colsCount: number) {
@@ -33,6 +31,7 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
   const isDirty = useRef(false);
   const [selectionAnchor, setSelectionAnchor] = useState<string | null>('A1');
   const [selectionFocus, setSelectionFocus] = useState<string | null>('A1');
+  const [hoveredCell, setHoveredCell] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<string | null>(null);
@@ -93,6 +92,15 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     commitChange(recalculateAll(newWb));
   }, [activeSheetId, workbook, commitChange, recalculateAll]);
 
+  const updateCells = useCallback((coords: string[], updates: Partial<CellData>) => {
+    const newWb = JSON.parse(JSON.stringify(workbook));
+    const sheet = newWb[activeSheetId];
+    coords.forEach(coord => {
+      sheet.data[coord] = { ...(sheet.data[coord] || { value: '', formula: '' }), ...updates };
+    });
+    commitChange(recalculateAll(newWb));
+  }, [activeSheetId, workbook, commitChange, recalculateAll]);
+
   const moveSelection = useCallback((key: string, ctrl = false, shift = false) => {
     if (!selectionFocus) return;
     const curr = coordinateToIndex(selectionFocus)!;
@@ -121,7 +129,7 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     if (cmd && e.key === 'c') {
       const cells: Record<string, CellData> = {};
       selectionRange.forEach(c => { if (data[c]) cells[c] = { ...data[c] }; });
-      setClipboard({ cells, rowCount: 1, colCount: 1 });
+      setClipboard({ cells });
       e.preventDefault();
     } else if (cmd && e.key === 'v' && clipboard) {
       if (activeSheet.isProtected) return;
@@ -164,8 +172,12 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       e.preventDefault(); 
     } else if (e.key.length === 1 && !cmd && !e.altKey) { 
       if (activeSheet.isProtected) return;
-      setEditingCell(selectionAnchor); 
-      setEditingValue(e.key); 
+      // POINT-AND-TYPE: Use hovered cell if typing without explicit click
+      const targetCell = hoveredCell || selectionAnchor;
+      if (targetCell) {
+        setEditingCell(targetCell); 
+        setEditingValue(e.key); 
+      }
       e.preventDefault(); 
     }
   };
@@ -173,13 +185,17 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
   return {
     workbook, setWorkbook, activeSheetId, setActiveSheetId, activeSheet, data,
     selectedCell: selectionAnchor, selectionRange, editingCell, setEditingCell, editingValue, setEditingValue,
-    updateCell, handleKeyDown, onFinishEdit, moveSelection, isDirty,
+    hoveredCell, setHoveredCell,
+    updateCell, updateCells, handleKeyDown, onFinishEdit, moveSelection, isDirty,
     handleMouseDown: (c: string, shift: boolean) => { 
       if (shift) setSelectionFocus(c); 
       else { setSelectionAnchor(c); setSelectionFocus(c); setEditingCell(null); } 
       setIsDragging(true); 
     },
-    handleMouseEnter: (c: string) => { if (isDragging) setSelectionFocus(c); },
+    handleMouseEnter: (c: string) => { 
+      setHoveredCell(c);
+      if (isDragging) setSelectionFocus(c); 
+    },
     handleMouseUp: () => setIsDragging(false),
     addSheet: () => { 
       const id = `sheet-${Date.now()}`; 
@@ -232,7 +248,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
         else newRowHeights[ri] = h as number;
       });
       sheet.rowHeights = newRowHeights;
-
       commitChange(recalculateAll(newWb));
     },
     deleteRow: () => {
@@ -249,6 +264,16 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
         else newData[coord] = cell;
       });
       sheet.data = newData;
+
+      const newRowHeights: Record<number, number> = {};
+      Object.entries(sheet.rowHeights || {}).forEach(([r, h]) => {
+        const ri = parseInt(r);
+        if (ri === row) return;
+        if (ri > row) newRowHeights[ri - 1] = h as number;
+        else newRowHeights[ri] = h as number;
+      });
+      sheet.rowHeights = newRowHeights;
+
       commitChange(recalculateAll(newWb));
     },
     insertCol: () => {
@@ -359,6 +384,41 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       });
 
       commitChange(recalculateAll(next));
+    },
+    mergeCells: () => {
+      if (selectionRange.length < 2) return;
+      const next = JSON.parse(JSON.stringify(workbook));
+      const sheet = next[activeSheetId];
+      const anchorCoord = selectionAnchor!;
+      
+      const start = coordinateToIndex(selectionAnchor!)!;
+      const end = coordinateToIndex(selectionFocus!)!;
+      const rowSpan = Math.abs(end.row - start.row) + 1;
+      const colSpan = Math.abs(end.col - start.col) + 1;
+
+      selectionRange.forEach(c => {
+        if (c === anchorCoord) {
+          sheet.data[c] = { ...(sheet.data[c] || { value: '', formula: '' }), rowSpan, colSpan };
+        } else {
+          sheet.data[c] = { ...(sheet.data[c] || { value: '', formula: '' }), hiddenByMerge: anchorCoord };
+        }
+      });
+      commitChange(next);
+    },
+    unmergeCells: () => {
+      const next = JSON.parse(JSON.stringify(workbook));
+      const sheet = next[activeSheetId];
+      selectionRange.forEach(c => {
+        const cell = sheet.data[c];
+        if (cell?.rowSpan || cell?.colSpan) {
+          delete cell.rowSpan;
+          delete cell.colSpan;
+        }
+        if (cell?.hiddenByMerge) {
+          delete cell.hiddenByMerge;
+        }
+      });
+      commitChange(next);
     },
     addChart: (type: ChartType) => { 
       const range = `${selectionAnchor}:${selectionFocus}`; 
