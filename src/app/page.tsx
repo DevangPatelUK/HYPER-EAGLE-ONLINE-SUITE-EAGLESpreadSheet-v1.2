@@ -116,15 +116,12 @@ export default function HyperEagleSpreadsheet() {
 
   const handleCommitEdit = useCallback((nextKey?: string) => {
     onFinishEdit(nextKey);
-    // Return focus to grid container for keyboard navigation
     containerRef.current?.focus();
   }, [onFinishEdit]);
 
-  // Extract data from the selected range for the AI assistant
   const selectedRangeData = useMemo(() => {
     if (!selectionRange.length) return [];
     
-    // Convert flat range to 2D array
     const sortedCoords = [...selectionRange].sort((a, b) => {
       const ia = coordinateToIndex(a)!;
       const ib = coordinateToIndex(b)!;
@@ -140,6 +137,14 @@ export default function HyperEagleSpreadsheet() {
 
     return Array.from(rowsMap.values());
   }, [selectionRange, data]);
+
+  const handlePrintClick = () => {
+    toast({
+      title: "Feature Disabled",
+      description: "Might Frezze Whole Software, we are working to get it Back Up soon",
+      variant: "destructive"
+    });
+  };
 
   return (
     <div 
@@ -190,7 +195,7 @@ export default function HyperEagleSpreadsheet() {
           onDelete={() => removeSheet(activeSheetId)}
           onAI={() => setAiOpen(true)} 
           onHelp={() => setHelpOpen(true)} 
-          onPrint={() => setPrintOpen(true)}
+          onPrint={handlePrintClick}
           onUndo={undo} 
           onRedo={redo} 
           canUndo={canUndo} 
@@ -311,21 +316,6 @@ export default function HyperEagleSpreadsheet() {
       <HelpDialog 
         open={helpOpen} 
         onOpenChange={setHelpOpen} 
-      />
-      <PrintSettingsDialog 
-        open={printOpen} 
-        onOpenChange={setPrintOpen} 
-        settings={activeSheet.printSettings || DEFAULT_PRINT} 
-        onUpdateSettings={(s) => { 
-          const n = { ...workbook }; 
-          n[activeSheetId].printSettings = s; 
-          setWorkbook(n); 
-        }} 
-        onPrint={() => { 
-          setPrintOpen(false); 
-          // Delay to allow dialog to close before blocking thread
-          setTimeout(() => window.print(), 300); 
-        }} 
       />
       <Toaster />
     </div>
