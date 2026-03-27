@@ -59,10 +59,10 @@ export const Cell = memo(({
   return (
     <div
       className={cn(
-        "relative h-full border-r border-b border-border min-w-[120px] flex items-center px-2 text-xs overflow-hidden select-none transition-colors",
+        "relative h-full border-r border-b border-border min-w-[120px] flex items-center px-2 text-xs overflow-hidden select-none transition-all duration-200",
         isInRange && "bg-primary/5",
         isActive && "ring-2 ring-primary ring-inset z-10 bg-primary/10",
-        isEditing && "shadow-xl z-20 bg-white",
+        isEditing && "shadow-xl z-20 bg-background",
         data?.isLocked && "bg-muted/30 cursor-not-allowed",
         data?.wrapText ? "whitespace-normal break-words py-1" : "whitespace-nowrap"
       )}
@@ -74,7 +74,7 @@ export const Cell = memo(({
       {isEditing ? (
         <input
           ref={inputRef}
-          className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary"
+          className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-background text-foreground"
           style={{ fontSize: data?.fontSize ? `${data.fontSize}px` : undefined }}
           value={localValue}
           onChange={(e) => setLocalValue(e.target.value)}

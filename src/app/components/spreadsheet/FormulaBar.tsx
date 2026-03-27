@@ -21,7 +21,7 @@ export const FormulaBar: React.FC<FormulaBarProps> = ({ selectedCoord, formula, 
   };
 
   return (
-    <div className="flex items-center bg-white border-b border-border p-1 gap-2">
+    <div className="flex items-center bg-background border-b border-border p-1 gap-2 transition-colors duration-300">
       <div className="w-12 h-8 flex items-center justify-center bg-secondary/50 rounded text-xs font-bold text-muted-foreground border border-border">
         {selectedCoord || ''}
       </div>

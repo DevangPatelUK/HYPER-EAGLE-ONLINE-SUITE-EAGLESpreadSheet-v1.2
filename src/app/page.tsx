@@ -12,7 +12,7 @@ import { evaluateFormula, coordinateToIndex } from './lib/formula-engine';
 import { exportToCSV, exportToXLSX, exportToPDF } from './lib/export-utils';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
-import { Plus, X, ChevronRight, UserCircle, Wifi, WifiOff, Loader2, Lock } from 'lucide-react';
+import { Plus, X, ChevronRight, UserCircle, Wifi, WifiOff, Loader2, Lock, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore } from '@/firebase';
 import { doc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
@@ -42,6 +42,7 @@ export default function HyperEagleSpreadsheet() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -49,6 +50,21 @@ export default function HyperEagleSpreadsheet() {
     window.addEventListener('online', h); window.addEventListener('offline', l);
     return () => { window.removeEventListener('online', h); window.removeEventListener('offline', l); };
   }, []);
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('hypreagle_theme') as 'light' | 'dark';
+    if (savedTheme) {
+      setTheme(savedTheme);
+      document.documentElement.classList.toggle('dark', savedTheme === 'dark');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(nextTheme);
+    localStorage.setItem('hypreagle_theme', nextTheme);
+    document.documentElement.classList.toggle('dark', nextTheme === 'dark');
+  };
 
   useEffect(() => {
     if (!user || !db) return;
@@ -111,7 +127,8 @@ export default function HyperEagleSpreadsheet() {
 
   const handleFontSizeChange = useCallback((delta: number) => {
     if (!selectionRange.length) return;
-    const currentSize = data[selectionRange[0]]?.fontSize || 12;
+    const firstCell = selectionRange[0];
+    const currentSize = data[firstCell]?.fontSize || 12;
     const nextSize = Math.max(6, Math.min(72, currentSize + delta));
     updateCells(selectionRange, { fontSize: nextSize });
   }, [selectionRange, data, updateCells]);
@@ -144,7 +161,7 @@ export default function HyperEagleSpreadsheet() {
     <div 
       ref={containerRef}
       className={cn(
-        "flex flex-col h-screen bg-background outline-none overflow-hidden print:h-auto", 
+        "flex flex-col h-screen bg-background outline-none overflow-hidden transition-colors duration-300 print:h-auto", 
         activeSheet.printSettings?.orientation === 'landscape' && "print:landscape"
       )}
       onKeyDown={handleKeyDown} 
@@ -158,6 +175,14 @@ export default function HyperEagleSpreadsheet() {
             {activeSheet.isProtected && <Lock className="h-3 w-3 ml-2 text-yellow-400" />}
           </div>
           <div className="flex items-center gap-4">
+            <button 
+              onClick={toggleTheme}
+              className="flex items-center gap-1.5 hover:text-white/80 transition-colors"
+              title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+            >
+              {theme === 'light' ? <Moon className="h-3 w-3" /> : <Sun className="h-3 w-3" />}
+              <span>{theme === 'light' ? 'DARK MODE' : 'LIGHT MODE'}</span>
+            </button>
             <div className={cn(
               "flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/10 border border-white/20", 
               !isOnline && "bg-destructive/20 border-destructive/40"
@@ -276,7 +301,7 @@ export default function HyperEagleSpreadsheet() {
         </div>
       </main>
 
-      <nav className="h-10 bg-white border-t border-border flex items-center px-2 gap-1 overflow-x-auto scrollbar-hide print:hidden">
+      <nav className="h-10 bg-background border-t border-border flex items-center px-2 gap-1 overflow-x-auto scrollbar-hide print:hidden">
         {Object.values(workbook).map(s => (
           <div 
             key={s.id} 
@@ -298,7 +323,7 @@ export default function HyperEagleSpreadsheet() {
             )}
           </div>
         ))}
-        <button onClick={addSheet} className="h-8 w-8 flex items-center justify-center hover:bg-secondary rounded ml-1">
+        <button onClick={addSheet} className="h-8 w-8 flex items-center justify-center hover:bg-secondary rounded ml-1 transition-colors">
           <Plus className="h-4 w-4" />
         </button>
       </nav>

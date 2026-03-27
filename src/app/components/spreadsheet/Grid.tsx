@@ -76,7 +76,7 @@ export const Grid = memo(({
   }, [resizing, onUpdateColWidth, onUpdateRowHeight]);
 
   return (
-    <div className="flex-1 overflow-auto bg-white select-none relative h-full w-full scrollbar-hide">
+    <div className="flex-1 overflow-auto bg-background select-none relative h-full w-full scrollbar-hide transition-colors duration-300">
       <div className="grid sticky top-0 z-40" style={{ gridTemplateColumns: gridTemplate }}>
         <div className="bg-muted h-8 border-r border-b sticky left-0 z-50 flex items-center justify-center" />
         {Array.from({ length: cols }).map((_, i) => (

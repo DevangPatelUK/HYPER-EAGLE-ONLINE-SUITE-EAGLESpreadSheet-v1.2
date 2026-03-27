@@ -201,7 +201,7 @@ export const Toolbar = memo(({
   };
 
   return (
-    <div className="flex flex-col bg-white border-b border-border shadow-sm print:hidden">
+    <div className="flex flex-col bg-background border-b border-border shadow-sm print:hidden transition-colors duration-300">
       <div className="flex items-center gap-4 px-4 py-1 border-b bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-widest select-none">
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-1 hover:text-primary cursor-pointer transition-colors px-1 outline-none">
@@ -363,7 +363,7 @@ export const Toolbar = memo(({
                     {BG_COLORS.map((color) => (
                       <DropdownMenuItem key={color.name} onSelect={() => onBgColor(color.value)}>
                         <div className="flex items-center gap-2 w-full">
-                          <div className="h-3 w-3 rounded-full border" style={{ backgroundColor: color.value || 'white' }} />
+                          <div className="h-3 w-3 rounded-full border" style={{ backgroundColor: color.value || 'transparent' }} />
                           <span className="text-xs">{color.name}</span>
                         </div>
                       </DropdownMenuItem>
@@ -387,8 +387,8 @@ export const Toolbar = memo(({
                     {TEXT_COLORS.map((color) => (
                       <DropdownMenuItem key={color.name} onSelect={() => onTextColor(color.value)}>
                         <div className="flex items-center gap-2 w-full">
-                          <div className="h-3 w-3 rounded-full border" style={{ backgroundColor: color.value || 'black' }} />
-                          <span className="text-xs" style={{ color: color.value }}>{color.name}</span>
+                          <div className="h-3 w-3 rounded-full border" style={{ backgroundColor: color.value || 'currentColor' }} />
+                          <span className="text-xs" style={{ color: color.value || 'inherit' }}>{color.name}</span>
                         </div>
                       </DropdownMenuItem>
                     ))}
