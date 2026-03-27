@@ -7,7 +7,6 @@ import { Grid } from './components/spreadsheet/Grid';
 import { AIAssistant } from './components/spreadsheet/AIAssistant';
 import { HelpDialog } from './components/spreadsheet/HelpDialog';
 import { ChartOverlay } from './components/spreadsheet/ChartOverlay';
-import { PrintSettingsDialog } from './components/spreadsheet/PrintSettings';
 import { useSheetStore } from './lib/sheet-store';
 import { evaluateFormula, PrintSettings, coordinateToIndex } from './lib/formula-engine';
 import { toast } from '@/hooks/use-toast';
@@ -20,8 +19,6 @@ import { doc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { format } from 'date-fns';
-
-const DEFAULT_PRINT: PrintSettings = { orientation: 'portrait', margins: 'standard', showGridlines: true, showHeaders: true };
 
 export default function HyperEagleSpreadsheet() {
   const rows = 50, cols = 26;
@@ -41,7 +38,6 @@ export default function HyperEagleSpreadsheet() {
 
   const [aiOpen, setAiOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [printOpen, setPrintOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -141,7 +137,7 @@ export default function HyperEagleSpreadsheet() {
   const handlePrintClick = () => {
     toast({
       title: "Feature Disabled",
-      description: "Might Frezze Whole Software, we are working to get it Back Up soon",
+      description: "(Might Freeze Whole Software, we are working to get it Back Up soon)",
       variant: "destructive"
     });
   };
@@ -223,6 +219,7 @@ export default function HyperEagleSpreadsheet() {
           onExportCSV={() => {}} 
           onExportJSON={() => {}} 
           onAddComment={() => {}} 
+          onAddChart={() => {}}
           onValidation={() => {}} 
           onConditionalFormat={() => {}}
           onType={() => {}} 
