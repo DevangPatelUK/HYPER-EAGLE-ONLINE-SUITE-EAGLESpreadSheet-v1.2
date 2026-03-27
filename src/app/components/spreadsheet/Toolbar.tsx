@@ -36,17 +36,14 @@ import {
   Unlock,
   BarChart3,
   Type as TypeIcon,
-  MousePointer2,
-  Combine,
-  Split,
-  Filter as FilterIcon,
-  TableProperties,
   Plus as PlusIcon,
   Minus as MinusIcon,
   Download,
   FileSpreadsheet,
   FileText,
-  FileCode
+  FileCode,
+  Combine,
+  Split
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -294,17 +291,17 @@ export const Toolbar = memo(({
         </DropdownMenu>
         
         <div className="ml-auto flex items-center gap-4">
-          <DropdownMenu>
-            <DropdownMenuTrigger className="text-primary flex items-center gap-1.5 hover:opacity-100 cursor-pointer transition-colors px-1 outline-none">
-              <Sparkles className="h-3 w-3" />
-              EAGLE AI <ChevronDown className="h-2 w-2" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[200px]">
-              <DropdownMenuItem onSelect={onAI}>
-                <Sparkles className="h-4 w-4 mr-2" /> Formula Assistant
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="text-muted-foreground flex items-center gap-1.5 opacity-50 cursor-not-allowed px-1 outline-none select-none">
+                  <Sparkles className="h-3 w-3" />
+                  AI will be Available Soon
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>AI will be Available Soon</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <DropdownMenu>
             <DropdownMenuTrigger className="text-muted-foreground flex items-center gap-1.5 hover:text-primary cursor-pointer transition-colors px-1 outline-none">
