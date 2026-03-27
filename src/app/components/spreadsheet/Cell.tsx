@@ -80,8 +80,10 @@ export const Cell = memo(({
           onKeyDown={(e) => {
             if (['Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
               e.preventDefault();
+              e.stopPropagation(); // Prevent the event from bubbling to the container and causing a double-move
               handleCommit(e.key);
             } else if (e.key === 'Escape') {
+              e.stopPropagation();
               onFinishEdit();
             }
           }}
