@@ -3,7 +3,6 @@
 import React, { useRef, useEffect, useState, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { CellData, formatCellValue, evaluateConditionalFormatting, validateValue } from '@/app/lib/formula-engine';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Lock } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from '@/hooks/use-toast';
@@ -54,7 +53,6 @@ export const Cell = memo(({
       if (initialValue === null) {
         inputRef.current.select();
       } else {
-        // Position cursor at the end if we started editing by typing
         inputRef.current.setSelectionRange(inputRef.current.value.length, inputRef.current.value.length);
       }
     }
@@ -68,14 +66,12 @@ export const Cell = memo(({
         onFinishEdit(nextKey);
       } else {
         toast({ title: 'Invalid Input', description: validation.message, variant: 'destructive' });
-        // Don't finish edit if invalid, keep focus
         inputRef.current?.focus();
       }
     }
   };
 
   const handleBlur = () => {
-    // Only trigger update on blur if we aren't already handling a key-based finish
     if (isEditing) {
        const validation = validateValue(localValue, data?.validation);
        if (validation.valid) onUpdate(coord, localValue);
@@ -116,7 +112,8 @@ export const Cell = memo(({
             }}
             onBlur={handleBlur}
             onKeyDown={(e) => { 
-              if (e.key === 'Enter' || e.key === 'Tab') {
+              if (['Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+                // For formulas, we might want arrows to select cells, but per user request, arrows commit and move
                 e.preventDefault();
                 handleFinish(e.key);
               } else if (e.key === 'Escape') {

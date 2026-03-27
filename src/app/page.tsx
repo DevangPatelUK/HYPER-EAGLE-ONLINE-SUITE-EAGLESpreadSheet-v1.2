@@ -35,6 +35,7 @@ export default function SpreadsheetPage() {
   const db = useFirestore();
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isRemoteUpdate = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   const {
     workbook,
@@ -90,6 +91,13 @@ export default function SpreadsheetPage() {
   const activeSheet = workbook[activeSheetId];
   const printSettings = activeSheet?.printSettings || DEFAULT_PRINT_SETTINGS;
 
+  // Auto-focus container when editing stops to allow immediate typing for the next cell
+  useEffect(() => {
+    if (!editingCell && containerRef.current) {
+      containerRef.current.focus();
+    }
+  }, [editingCell]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
     setIsOnline(navigator.onLine);
@@ -132,7 +140,7 @@ export default function SpreadsheetPage() {
     
     setDoc(userDocRef, {
       userId: user.uid,
-      name: workbook[activeSheetId]?.name || 'APEXELX Workbook',
+      name: workbook[activeSheetId]?.name || 'FEDERAL APEX Workbook',
       workbookData: workbook,
       updatedAt: serverTimestamp(),
     }, { merge: true })
@@ -185,10 +193,16 @@ export default function SpreadsheetPage() {
   };
 
   return (
-    <div className={cn(
-      "flex flex-col h-screen overflow-hidden bg-background outline-none print:h-auto print:overflow-visible",
-      printSettings.orientation === 'landscape' && "print:landscape"
-    )} onKeyDown={handleKeyDown} tabIndex={0} role="application">
+    <div 
+      ref={containerRef}
+      className={cn(
+        "flex flex-col h-screen overflow-hidden bg-background outline-none print:h-auto print:overflow-visible",
+        printSettings.orientation === 'landscape' && "print:landscape"
+      )} 
+      onKeyDown={handleKeyDown} 
+      tabIndex={0} 
+      role="application"
+    >
       
       {printSettings.headerText && (
         <div className="hidden print:flex w-full justify-center py-4 border-b mb-4 text-sm font-semibold uppercase tracking-widest">
