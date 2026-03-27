@@ -112,6 +112,11 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     if (key === 'ArrowRight' || key === 'Tab') col = ctrl ? colsCount - 1 : Math.min(colsCount - 1, col + 1);
 
     const next = indexToCoordinate(row, col);
+    
+    // CRITICAL FIX: Clear hovered cell when selection moves via keyboard
+    // This prevents "Point-and-Type" from sticking to the old cell location
+    setHoveredCell(null);
+
     if (shift) setSelectionFocus(next);
     else { setSelectionAnchor(next); setSelectionFocus(next); }
   }, [selectionFocus, rowsCount, colsCount]);
@@ -119,7 +124,8 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
   const onFinishEdit = (nextKey?: string) => {
     setEditingCell(null);
     setEditingValue(null);
-    if (nextKey) setTimeout(() => moveSelection(nextKey), 0);
+    // CRITICAL FIX: Move selection synchronously to avoid race conditions with next input
+    if (nextKey) moveSelection(nextKey);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -176,7 +182,10 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       const targetCell = hoveredCell || selectionAnchor;
       if (targetCell) {
         setEditingCell(targetCell); 
-        setEditingValue(e.key); 
+        setEditingValue(e.key);
+        // Sync selection state if we started via hover
+        setSelectionAnchor(targetCell);
+        setSelectionFocus(targetCell);
       }
       e.preventDefault(); 
     }
