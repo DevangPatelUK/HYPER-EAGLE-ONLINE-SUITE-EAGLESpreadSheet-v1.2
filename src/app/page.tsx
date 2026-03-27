@@ -88,14 +88,12 @@ export default function SpreadsheetPage() {
   const activeSheet = workbook[activeSheetId] || Object.values(workbook)[0];
   const printSettings = activeSheet?.printSettings || DEFAULT_PRINT_SETTINGS;
 
-  // Ensure grid container always has focus for keyboard shortcuts
   useEffect(() => {
     if (!editingCell && containerRef.current) {
       containerRef.current.focus();
     }
   }, [editingCell]);
 
-  // Network status listener
   useEffect(() => {
     if (typeof window === 'undefined') return;
     setIsOnline(navigator.onLine);
@@ -109,7 +107,6 @@ export default function SpreadsheetPage() {
     };
   }, []);
 
-  // Firestore Sync Listener
   useEffect(() => {
     if (!user || !db) return;
     const userDocRef = doc(db, 'workbooks', user.uid);
@@ -122,7 +119,6 @@ export default function SpreadsheetPage() {
           if (cloudData.updatedAt) {
             setLastSaved(cloudData.updatedAt.toDate());
           }
-          // Debounce reset of remote update flag
           setTimeout(() => { isRemoteUpdate.current = false; }, 200);
         }
       }
@@ -132,7 +128,6 @@ export default function SpreadsheetPage() {
     return () => unsubscribe();
   }, [user, db, setWorkbook]);
 
-  // Autosave Logic
   const handleSave = useCallback(() => {
     if (!user || !db || isRemoteUpdate.current || !isDirty.current) return;
     
@@ -169,7 +164,7 @@ export default function SpreadsheetPage() {
   const handleUpdate = (coord: string, val: string) => {
     const cell = data[coord];
     if (cell?.isLocked || activeSheet?.isProtected) {
-      toast({ title: 'Cell Protected', description: 'This cell is locked for the HYPER EAGLE SUITE.', variant: 'destructive' });
+      toast({ title: 'Cell Protected', description: 'This cell is locked.', variant: 'destructive' });
       return;
     }
 
