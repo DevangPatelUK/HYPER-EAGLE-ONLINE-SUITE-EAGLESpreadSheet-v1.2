@@ -176,6 +176,7 @@ export default function HyperEagleSpreadsheet() {
           onAlign={(a) => selectionRange.forEach(c => updateCell(c, { align: a }))}
           onFormat={(f) => selectionRange.forEach(c => updateCell(c, { format: f }))}
           onBgColor={(bg) => selectionRange.forEach(c => updateCell(c, { backgroundColor: bg }))}
+          onTextColor={(tc) => selectionRange.forEach(c => updateCell(c, { textColor: tc }))}
           onNew={addSheet} 
           onSave={handleSave} 
           onDelete={() => removeSheet(activeSheetId)}
@@ -201,6 +202,15 @@ export default function HyperEagleSpreadsheet() {
           onFreezeRows={freezeRows} 
           onFreezeCols={freezeCols} 
           onSort={sortRange} 
+          onAddComment={() => {
+            const comment = window.prompt("Enter your comment:");
+            if (comment) selectionRange.forEach(c => updateCell(c, { comment }));
+          }}
+          onValidation={(rule) => selectionRange.forEach(c => updateCell(c, { validation: rule }))}
+          onConditionalFormat={(rule) => selectionRange.forEach(c => {
+             const existing = data[c]?.conditionalFormats || [];
+             updateCell(c, { conditionalFormats: rule ? [...existing, rule] : [] });
+          })}
           onFilter={(op, v) => {}} 
           onClearFilters={() => {}} 
           onMerge={() => {}} 
@@ -208,11 +218,7 @@ export default function HyperEagleSpreadsheet() {
           onImportCSV={() => {}} 
           onExportCSV={() => {}} 
           onExportJSON={() => {}} 
-          onAddComment={() => {}} 
-          onValidation={() => {}} 
-          onConditionalFormat={() => {}}
-          onType={() => {}} 
-          onTextColor={() => {}}
+          onType={(t, opts) => selectionRange.forEach(c => updateCell(c, { type: t, options: opts }))} 
         />
         <FormulaBar 
           selectedCoord={selectedCell} 

@@ -34,7 +34,13 @@ import {
   Eye,
   Lock,
   Unlock,
-  BarChart3
+  BarChart3,
+  Type as TypeIcon,
+  MousePointer2,
+  Combine,
+  Split,
+  Filter as FilterIcon,
+  TableProperties
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -116,6 +122,17 @@ const BG_COLORS = [
   { name: 'Purple', value: '#f3e8ff' },
 ];
 
+const TEXT_COLORS = [
+  { name: 'Default', value: '' },
+  { name: 'White', value: '#ffffff' },
+  { name: 'Black', value: '#000000' },
+  { name: 'Emerald', value: '#059669' },
+  { name: 'Blue', value: '#2563eb' },
+  { name: 'Red', value: '#dc2626' },
+  { name: 'Orange', value: '#ea580c' },
+  { name: 'Gray', value: '#4b5563' },
+];
+
 export const Toolbar = memo(({
   onBold,
   onItalic,
@@ -124,6 +141,7 @@ export const Toolbar = memo(({
   onAlign,
   onFormat,
   onBgColor,
+  onTextColor,
   onNew,
   onSave,
   onDelete,
@@ -148,6 +166,10 @@ export const Toolbar = memo(({
   onLock,
   isSheetProtected,
   onToggleProtectSheet,
+  onMerge,
+  onUnmerge,
+  onValidation,
+  onConditionalFormat,
   canUndo,
   canRedo,
   sheetName,
@@ -173,12 +195,12 @@ export const Toolbar = memo(({
             File <ChevronDown className="h-2 w-2" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-[200px]">
-            <DropdownMenuItem onClick={onNew}><FilePlus className="h-4 w-4 mr-2" />New Sheet</DropdownMenuItem>
-            <DropdownMenuItem onClick={onSave}><Save className="h-4 w-4 mr-2" />Save Workbook</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onNew}><FilePlus className="h-4 w-4 mr-2" />New Sheet</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onSave}><Save className="h-4 w-4 mr-2" />Save Workbook</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onPrint}><Printer className="h-4 w-4 mr-2" />Print Settings</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onPrint}><Printer className="h-4 w-4 mr-2" />Print Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onDelete} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Delete Active Sheet</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onDelete} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Delete Active Sheet</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -187,18 +209,21 @@ export const Toolbar = memo(({
             Edit <ChevronDown className="h-2 w-2" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-[220px]">
-            <DropdownMenuItem onClick={onUndo} disabled={!canUndo}><Undo className="h-4 w-4 mr-2" />Undo (Ctrl+Z)</DropdownMenuItem>
-            <DropdownMenuItem onClick={onRedo} disabled={!canRedo}><Redo className="h-4 w-4 mr-2" />Redo (Ctrl+Y)</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onUndo} disabled={!canUndo}><Undo className="h-4 w-4 mr-2" />Undo (Ctrl+Z)</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onRedo} disabled={!canRedo}><Redo className="h-4 w-4 mr-2" />Redo (Ctrl+Y)</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onInsertRow}><Rows className="h-4 w-4 mr-2" />Insert Row</DropdownMenuItem>
-            <DropdownMenuItem onClick={onDeleteRow}><Trash2 className="h-4 w-4 mr-2" />Delete Row</DropdownMenuItem>
-            <DropdownMenuItem onClick={onInsertCol}><Columns className="h-4 w-4 mr-2" />Insert Column</DropdownMenuItem>
-            <DropdownMenuItem onClick={onDeleteCol}><Trash2 className="h-4 w-4 mr-2" />Delete Column</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onInsertRow}><Rows className="h-4 w-4 mr-2" />Insert Row Above</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onDeleteRow}><Trash2 className="h-4 w-4 mr-2" />Delete Selected Rows</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onInsertCol}><Columns className="h-4 w-4 mr-2" />Insert Column Left</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onDeleteCol}><Trash2 className="h-4 w-4 mr-2" />Delete Selected Columns</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onSort('asc')}><ChevronRight className="h-4 w-4 mr-2 rotate-[-90deg]" />Sort Range Ascending</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onSort('desc')}><ChevronRight className="h-4 w-4 mr-2 rotate-[90deg]" />Sort Range Descending</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onSort('asc')}><ChevronRight className="h-4 w-4 mr-2 rotate-[-90deg]" />Sort Range A-Z</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onSort('desc')}><ChevronRight className="h-4 w-4 mr-2 rotate-[90deg]" />Sort Range Z-A</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onClear}><Eraser className="h-4 w-4 mr-2" />Clear Selection (Del)</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onMerge}><Combine className="h-4 w-4 mr-2" />Merge Cells</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onUnmerge}><Split className="h-4 w-4 mr-2" />Unmerge Cells</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onClear}><Eraser className="h-4 w-4 mr-2" />Clear Selection (Del)</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -207,13 +232,13 @@ export const Toolbar = memo(({
             View <ChevronDown className="h-2 w-2" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-[200px]">
-            <DropdownMenuItem onClick={() => onFreezeRows(1)}><PanelTop className="h-4 w-4 mr-2" />Freeze Top Row</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onFreezeCols(1)}><PanelLeft className="h-4 w-4 mr-2" />Freeze First Column</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onFreezeRows(0)}><Undo className="h-4 w-4 mr-2" />Unfreeze All</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onFreezeRows(1)}><PanelTop className="h-4 w-4 mr-2" />Freeze Top Row</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onFreezeCols(1)}><PanelLeft className="h-4 w-4 mr-2" />Freeze First Column</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onFreezeRows(0)}><Undo className="h-4 w-4 mr-2" />Unfreeze All</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onHideRows}><EyeOff className="h-4 w-4 mr-2" />Hide Selected Rows</DropdownMenuItem>
-            <DropdownMenuItem onClick={onHideCols}><EyeOff className="h-4 w-4 mr-2" />Hide Selected Cols</DropdownMenuItem>
-            <DropdownMenuItem onClick={onUnhideAll}><Eye className="h-4 w-4 mr-2" />Unhide All</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onHideRows}><EyeOff className="h-4 w-4 mr-2" />Hide Selected Rows</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onHideCols}><EyeOff className="h-4 w-4 mr-2" />Hide Selected Cols</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onUnhideAll}><Eye className="h-4 w-4 mr-2" />Unhide All Rows/Cols</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -225,17 +250,24 @@ export const Toolbar = memo(({
             <DropdownMenuSub>
               <DropdownMenuSubTrigger><BarChart3 className="h-4 w-4 mr-2" />Insert Chart</DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
-                <DropdownMenuItem onClick={() => onAddChart('bar')}>Bar Chart</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onAddChart('line')}>Line Chart</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onAddChart('area')}>Area Chart</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onAddChart('pie')}>Pie Chart</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onAddChart('bar')}>Bar Chart</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onAddChart('line')}>Line Chart</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onAddChart('area')}>Area Chart</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onAddChart('pie')}>Pie Chart</DropdownMenuItem>
               </DropdownMenuSubContent>
             </DropdownMenuSub>
-            <DropdownMenuItem onClick={onToggleProtectSheet}>
+            <DropdownMenuItem onSelect={() => onValidation({ type: 'number', allowEmpty: true })}>
+              <TableProperties className="h-4 w-4 mr-2" /> Data Validation
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onConditionalFormat({ operator: 'gt', value: '100', style: { backgroundColor: '#fee2e2', textColor: '#dc2626' } })}>
+              <Palette className="h-4 w-4 mr-2" /> Conditional Format
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onToggleProtectSheet}>
               {isSheetProtected ? <Unlock className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
               {isSheetProtected ? 'Unprotect Sheet' : 'Protect Sheet'}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onLock(true)}><Lock className="h-4 w-4 mr-2" />Lock Cells</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onLock(true)}><Lock className="h-4 w-4 mr-2" />Lock Selected Cells</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         
@@ -246,7 +278,7 @@ export const Toolbar = memo(({
               EAGLE AI <ChevronDown className="h-2 w-2" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[200px]">
-              <DropdownMenuItem onClick={onAI}>
+              <DropdownMenuItem onSelect={onAI}>
                 <Sparkles className="h-4 w-4 mr-2" /> Formula Assistant
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -258,7 +290,7 @@ export const Toolbar = memo(({
               Help <ChevronDown className="h-2 w-2" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[220px]">
-              <DropdownMenuItem onClick={onHelp}>
+              <DropdownMenuItem onSelect={onHelp}>
                 <BookOpen className="h-4 w-4 mr-2" /> Documentation & Shortcuts
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -285,32 +317,64 @@ export const Toolbar = memo(({
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onFormat('currency')}><CircleDollarSign className="h-4 w-4" /></Button>
               </TooltipTrigger>
-              <TooltipContent>Format as Currency</TooltipContent>
+              <TooltipContent>Currency Format</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onFormat('percent')}><Percent className="h-4 w-4" /></Button>
               </TooltipTrigger>
-              <TooltipContent>Format as Percent</TooltipContent>
+              <TooltipContent>Percent Format</TooltipContent>
             </Tooltip>
             
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Palette className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="grid grid-cols-4 gap-1 p-2 w-32">
-                {BG_COLORS.map((color) => (
-                  <DropdownMenuItem 
-                    key={color.name} 
-                    className="p-0 h-6 w-6 rounded border cursor-pointer hover:scale-110 transition-transform" 
-                    style={{ backgroundColor: color.value || 'white' }} 
-                    onClick={() => onBgColor(color.value)} 
-                  />
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Palette className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="min-w-[140px]">
+                    <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase">Background</div>
+                    {BG_COLORS.map((color) => (
+                      <DropdownMenuItem key={color.name} onSelect={() => onBgColor(color.value)}>
+                        <div className="flex items-center gap-2 w-full">
+                          <div className="h-3 w-3 rounded-full border" style={{ backgroundColor: color.value || 'white' }} />
+                          <span className="text-xs">{color.name}</span>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TooltipTrigger>
+              <TooltipContent>Cell Background</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <TypeIcon className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="min-w-[140px]">
+                    <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase">Text Color</div>
+                    {TEXT_COLORS.map((color) => (
+                      <DropdownMenuItem key={color.name} onSelect={() => onTextColor(color.value)}>
+                        <div className="flex items-center gap-2 w-full">
+                          <div className="h-3 w-3 rounded-full border" style={{ backgroundColor: color.value || 'black' }} />
+                          <span className="text-xs" style={{ color: color.value }}>{color.name}</span>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TooltipTrigger>
+              <TooltipContent>Text Color</TooltipContent>
+            </Tooltip>
           </div>
 
           <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
@@ -323,7 +387,7 @@ export const Toolbar = memo(({
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onWrapText}><WrapText className="h-4 w-4" /></Button>
               </TooltipTrigger>
-              <TooltipContent>Wrap Text</TooltipContent>
+              <TooltipContent>Toggle Text Wrapping</TooltipContent>
             </Tooltip>
             <Separator orientation="vertical" className="h-4 mx-1" />
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAlign('left')}><AlignLeft className="h-4 w-4" /></Button>
@@ -338,7 +402,7 @@ export const Toolbar = memo(({
               <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onAddComment}><MessageSquarePlus className="h-4 w-4" /></Button>
               </TooltipTrigger>
-              <TooltipContent>Add Comment</TooltipContent>
+              <TooltipContent>Insert Comment</TooltipContent>
             </Tooltip>
           </div>
         </TooltipProvider>
