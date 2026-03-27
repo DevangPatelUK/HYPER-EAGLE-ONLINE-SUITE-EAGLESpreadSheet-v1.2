@@ -86,12 +86,16 @@ export const Cell = memo(({
         isInRange && "bg-primary/5",
         isActive && "ring-2 ring-primary ring-inset z-10 bg-primary/10",
         isEditing && "shadow-lg z-20 bg-white",
-        data?.isLocked && "bg-muted/30 cursor-not-allowed"
+        data?.isLocked && "bg-muted/30 cursor-not-allowed",
+        data?.wrapText ? "whitespace-normal break-words py-1" : "whitespace-nowrap"
       )}
       style={{ 
         backgroundColor: evaluateConditionalFormatting(data || { value: '', formula: '' }).backgroundColor || data?.backgroundColor,
         color: evaluateConditionalFormatting(data || { value: '', formula: '' }).textColor || data?.textColor,
-        fontWeight: data?.bold ? 'bold' : 'normal'
+        fontWeight: data?.bold ? 'bold' : 'normal',
+        fontStyle: data?.italic ? 'italic' : 'normal',
+        textDecoration: data?.underline ? 'underline' : 'none',
+        textAlign: data?.align || 'left'
       }}
       onMouseDown={(e) => onMouseDown(coord, e.shiftKey)}
       onMouseEnter={() => onMouseEnter(coord)}
@@ -113,7 +117,6 @@ export const Cell = memo(({
             onBlur={handleBlur}
             onKeyDown={(e) => { 
               if (['Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                // For formulas, we might want arrows to select cells, but per user request, arrows commit and move
                 e.preventDefault();
                 handleFinish(e.key);
               } else if (e.key === 'Escape') {
@@ -130,7 +133,9 @@ export const Cell = memo(({
           />
         </div>
       ) : (
-        <span className="truncate">{formatCellValue(data?.value || '', data?.format)}</span>
+        <span className={cn("block w-full", data?.wrapText ? "" : "truncate")}>
+          {formatCellValue(data?.value || '', data?.format)}
+        </span>
       )}
     </div>
   );

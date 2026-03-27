@@ -58,7 +58,8 @@ import {
   ScatterChart as ScatterChartIcon,
   Printer,
   HelpCircle,
-  BookOpen
+  BookOpen,
+  WrapText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -85,6 +86,7 @@ interface ToolbarProps {
   onBold: () => void;
   onItalic: () => void;
   onUnderline: () => void;
+  onWrapText: () => void;
   onAlign: (align: 'left' | 'center' | 'right') => void;
   onFormat: (format: 'number' | 'currency' | 'percent' | 'text') => void;
   onType: (type: 'text' | 'number' | 'date' | 'checkbox' | 'select', options?: string[]) => void;
@@ -153,6 +155,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onBold,
   onItalic,
   onUnderline,
+  onWrapText,
   onAlign,
   onFormat,
   onType,
@@ -327,6 +330,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             <DropdownMenuItem onClick={onBold}><Bold className="h-4 w-4 mr-2" />Bold</DropdownMenuItem>
             <DropdownMenuItem onClick={onItalic}><Italic className="h-4 w-4 mr-2" />Italic</DropdownMenuItem>
             <DropdownMenuItem onClick={onUnderline}><Underline className="h-4 w-4 mr-2" />Underline</DropdownMenuItem>
+            <DropdownMenuItem onClick={onWrapText}><WrapText className="h-4 w-4 mr-2" />Wrap Text</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuSub>
               <DropdownMenuSubTrigger><Palette className="h-4 w-4 mr-2" />Text Color</DropdownMenuSubTrigger>
@@ -493,6 +497,12 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBold}><Bold className="h-4 w-4" /></Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onItalic}><Italic className="h-4 w-4" /></Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onUnderline}><Underline className="h-4 w-4" /></Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onWrapText}><WrapText className="h-4 w-4" /></Button>
+              </TooltipTrigger>
+              <TooltipContent>Wrap Text</TooltipContent>
+            </Tooltip>
             <Separator orientation="vertical" className="h-4 mx-1" />
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAlign('left')}><AlignLeft className="h-4 w-4" /></Button>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onAlign('center')}><AlignCenter className="h-4 w-4" /></Button>

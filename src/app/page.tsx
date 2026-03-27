@@ -93,7 +93,6 @@ export default function SpreadsheetPage() {
   const activeSheet = workbook[activeSheetId];
   const printSettings = activeSheet?.printSettings || DEFAULT_PRINT_SETTINGS;
 
-  // Auto-focus container when editing stops to allow immediate typing for the next cell
   useEffect(() => {
     if (!editingCell && containerRef.current) {
       containerRef.current.focus();
@@ -234,11 +233,7 @@ export default function SpreadsheetPage() {
           onBold={() => selectionRange.forEach(c => updateCell(c, { bold: !data[c]?.bold }))}
           onItalic={() => selectionRange.forEach(c => updateCell(c, { italic: !data[c]?.italic }))}
           onUnderline={() => selectionRange.forEach(c => updateCell(c, { underline: !data[c]?.underline }))}
-          onAlign={(align) => selectionRange.forEach(c => updateCell(c, { align }))}
-          onFormat={(format) => selectionRange.forEach(c => updateCell(c, { format }))}
-          onType={(type, options) => selectionRange.forEach(c => updateCell(c, { type, options }))}
-          onBgColor={(backgroundColor) => selectionRange.forEach(c => updateCell(c, { backgroundColor }))}
-          onUnderline={() => selectionRange.forEach(c => updateCell(c, { underline: !data[c]?.underline }))}
+          onWrapText={() => selectionRange.forEach(c => updateCell(c, { wrapText: !data[c]?.wrapText }))}
           onAlign={(align) => selectionRange.forEach(c => updateCell(c, { align }))}
           onFormat={(format) => selectionRange.forEach(c => updateCell(c, { format }))}
           onType={(type, options) => selectionRange.forEach(c => updateCell(c, { type, options }))}
@@ -271,7 +266,6 @@ export default function SpreadsheetPage() {
           onPrint={() => setPrintOpen(true)}
           onValidation={(v) => selectionRange.forEach(c => updateCell(c, { validation: v }))}
           onConditionalFormat={(r) => selectionRange.forEach(c => updateCell(c, { conditionalFormats: r ? [r] : [] }))}
-          onPrintPreview={() => {}}
           onLock={(l) => selectionRange.forEach(c => updateCell(c, { isLocked: l }))}
           onToggleProtectSheet={handleToggleProtectSheet}
           isSheetProtected={!!activeSheet?.isProtected}

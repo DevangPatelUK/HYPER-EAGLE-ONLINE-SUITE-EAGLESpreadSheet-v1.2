@@ -22,6 +22,7 @@ export type CellData = {
   italic?: boolean;
   underline?: boolean;
   strikethrough?: boolean;
+  wrapText?: boolean;
   align?: 'left' | 'center' | 'right';
   backgroundColor?: string;
   textColor?: string;
