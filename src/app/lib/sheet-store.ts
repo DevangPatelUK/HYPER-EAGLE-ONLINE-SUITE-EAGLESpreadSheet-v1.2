@@ -379,6 +379,24 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     isDirty.current = true;
   };
 
+  const updateRowHeight = (row: number, height: number) => {
+    const newWb = { ...workbook };
+    const sheet = { ...newWb[activeSheetId] };
+    sheet.rowHeights = { ...sheet.rowHeights, [row]: height };
+    newWb[activeSheetId] = sheet;
+    setWorkbook(newWb);
+    isDirty.current = true;
+  };
+
+  const updateColWidth = (col: number, width: number) => {
+    const newWb = { ...workbook };
+    const sheet = { ...newWb[activeSheetId] };
+    sheet.colWidths = { ...sheet.colWidths, [col]: width };
+    newWb[activeSheetId] = sheet;
+    setWorkbook(newWb);
+    isDirty.current = true;
+  };
+
   return {
     workbook, setWorkbook, activeSheetId, setActiveSheetId, data,
     selectedCell: selectionAnchor, selectionRange, editingCell, setEditingCell, editingValue, setEditingValue,
@@ -446,6 +464,8 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     },
     addChart,
     removeChart,
+    updateRowHeight,
+    updateColWidth,
     mergeSelection: () => {}, unmergeSelection: () => {}, unhideAll: () => {
       const newWb = { ...workbook };
       const sheet = newWb[activeSheetId];
