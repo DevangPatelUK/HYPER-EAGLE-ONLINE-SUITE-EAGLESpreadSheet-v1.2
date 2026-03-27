@@ -141,7 +141,7 @@ export default function SpreadsheetPage() {
     
     setDoc(userDocRef, {
       userId: user.uid,
-      name: workbook[activeSheetId]?.name || 'FEDERAL APEX Workbook',
+      name: workbook[activeSheetId]?.name || 'HYPER EAGLE Workbook',
       workbookData: workbook,
       updatedAt: serverTimestamp(),
     }, { merge: true })
@@ -167,13 +167,13 @@ export default function SpreadsheetPage() {
   }, [workbook, user, db, handleSave, isDirty]);
 
   const handleSignIn = () => {
-    toast({ title: "Coming Soon", description: "Cloud authentication for APEXELX is being provisioned." });
+    toast({ title: "Coming Soon", description: "Cloud authentication for HYPER EAGLE ONLINE is being provisioned." });
   };
 
   const handleUpdate = (coord: string, val: string) => {
     const cell = data[coord];
     if (cell?.isLocked || activeSheet?.isProtected) {
-      toast({ title: 'Cell Protected', description: 'This cell is locked for the FEDERAL APEX SHOP SUITE.', variant: 'destructive' });
+      toast({ title: 'Cell Protected', description: 'This cell is locked for the HYPER EAGLE SUITE.', variant: 'destructive' });
       return;
     }
 
@@ -215,7 +215,7 @@ export default function SpreadsheetPage() {
         <div className="bg-primary px-4 py-1 flex items-center justify-between text-white text-[10px] font-bold uppercase tracking-tighter">
           <div className="flex items-center gap-2">
             <UserCircle className="h-3 w-3" />
-            {user ? `Signed in as ${user.displayName || user.email}` : 'FEDERAL APEX SHOP SUITE - GUEST MODE'}
+            {user ? `Signed in as ${user.displayName || user.email}` : 'HYPER EAGLE ONLINE SUITE - GUEST MODE'}
           </div>
           <div className="flex items-center gap-4">
             <div className={cn("flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-white/20 bg-white/10", !isOnline && "bg-destructive/20 border-destructive/40")}>
@@ -325,7 +325,7 @@ export default function SpreadsheetPage() {
       <Toaster />
       <footer className="h-6 bg-primary text-[10px] text-white flex items-center px-4 justify-between uppercase tracking-widest font-bold print:hidden">
         <div className="flex items-center gap-2">
-          <span>APEXELX v2.1</span>
+          <span>HYPER EAGLE v1.0</span>
           <ChevronRight className="h-3 w-3" />
           <span>{activeSheet?.name}</span>
           {isSyncing ? (
@@ -334,7 +334,7 @@ export default function SpreadsheetPage() {
             <span className="opacity-70 ml-2">Saved at {format(lastSaved, 'HH:mm:ss')}</span>
           ) : null}
         </div>
-        <span>{selectionRange.length > 1 ? `${selectionRange.length} cells selected` : 'APEXELX READY'}</span>
+        <span>{selectionRange.length > 1 ? `${selectionRange.length} cells selected` : 'HYPER EAGLE READY'}</span>
       </footer>
 
       <AIAssistant open={aiOpen} onOpenChange={setAiOpen} selectedRange={selectedCell} selectedRangeData={[]} onApplyFormula={(f) => selectedCell && handleUpdate(selectedCell, f)} />

@@ -16,9 +16,9 @@ import {
 } from './formula-engine';
 
 const HISTORY_LIMIT = 30;
-const STORAGE_KEY_WORKBOOK = 'sheetflow_current_workbook';
-const STORAGE_KEY_PAST = 'sheetflow_history_past';
-const STORAGE_KEY_FUTURE = 'sheetflow_history_future';
+const STORAGE_KEY_WORKBOOK = 'hypreagle_current_workbook';
+const STORAGE_KEY_PAST = 'hypreagle_history_past';
+const STORAGE_KEY_FUTURE = 'hypreagle_history_future';
 
 interface ClipboardData {
   rows: number;
@@ -28,7 +28,7 @@ interface ClipboardData {
 
 export function useSheetStore(rowsCount: number, colsCount: number) {
   const [workbook, setWorkbook] = useState<WorkbookData>({
-    'sheet-1': { id: 'sheet-1', name: 'Sheet1', data: {}, charts: [] }
+    'sheet-1': { id: 'sheet-1', name: 'EAGLESpreadSheet', data: {}, charts: [] }
   });
   const [activeSheetId, setActiveSheetId] = useState('sheet-1');
   const [past, setPast] = useState<WorkbookData[]>([]);
@@ -363,7 +363,7 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       id: `chart-${Date.now()}`,
       type,
       range,
-      title: `Chart of ${range}`,
+      title: `Eagle Insight: ${range}`,
       position: { x: 100, y: 100, width: 400, height: 300 }
     };
     sheet.charts = [...(sheet.charts || []), newChart];
@@ -401,7 +401,7 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     workbook, setWorkbook, activeSheetId, setActiveSheetId, data,
     selectedCell: selectionAnchor, selectionRange, editingCell, setEditingCell, editingValue, setEditingValue,
     updateCell, handleMouseDown, handleMouseEnter, handleMouseUp, handleKeyDown, onFinishEdit: finishEdit,
-    addSheet: () => pushToHistory({ ...workbook, [`sheet-${Date.now()}`]: { id: `sheet-${Date.now()}`, name: `Sheet${Object.keys(workbook).length + 1}`, data: {}, charts: [] } }),
+    addSheet: () => pushToHistory({ ...workbook, [`sheet-${Date.now()}`]: { id: `sheet-${Date.now()}`, name: `EagleSheet${Object.keys(workbook).length + 1}`, data: {}, charts: [] } }),
     renameSheet: (id: string, name: string) => { const nwb = { ...workbook }; nwb[id].name = name; setWorkbook(nwb); isDirty.current = true; },
     removeSheet: (id: string) => { if (Object.keys(workbook).length > 1) { const nwb = { ...workbook }; delete nwb[id]; setWorkbook(recalculateAll(nwb)); if (activeSheetId === id) setActiveSheetId(Object.keys(nwb)[0]); isDirty.current = true; } },
     undo, redo, canUndo: past.length > 0, canRedo: future.length > 0, isDirty,
