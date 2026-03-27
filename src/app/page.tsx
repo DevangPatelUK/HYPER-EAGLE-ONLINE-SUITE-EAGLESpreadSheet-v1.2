@@ -11,7 +11,7 @@ import { useSheetStore } from './lib/sheet-store';
 import { evaluateFormula, coordinateToIndex } from './lib/formula-engine';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
-import { Plus, X, ChevronRight, UserCircle, Wifi, WifiOff, Loader2 } from 'lucide-react';
+import { Plus, X, ChevronRight, UserCircle, Wifi, WifiOff, Loader2, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore } from '@/firebase';
 import { doc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
@@ -32,7 +32,7 @@ export default function HyperEagleSpreadsheet() {
     selectedCell, selectionRange, editingCell, setEditingCell, editingValue, setEditingValue,
     updateCell, updateRowHeight, updateColWidth, handleMouseDown, handleMouseEnter, handleMouseUp,
     handleKeyDown, onFinishEdit, addSheet, renameSheet, removeSheet, undo, redo, canUndo, canRedo,
-    isDirty, addChart, removeChart, insertRow, deleteRow, insertCol, deleteCol, freezeRows, freezeCols, hideRows, hideCols, unhideAll, sortRange
+    isDirty, addChart, removeChart, insertRow, deleteRow, insertCol, deleteCol, freezeRows, freezeCols, hideRows, hideCols, unhideAll, sortRange, toggleProtectSheet
   } = useSheetStore(rows, cols);
 
   const [aiOpen, setAiOpen] = useState(false);
@@ -89,7 +89,7 @@ export default function HyperEagleSpreadsheet() {
 
   const handleUpdate = useCallback((coord: string, val: string) => {
     if (activeSheet.isProtected || data[coord]?.isLocked) {
-      toast({ title: 'Protected', description: 'Cell is locked.', variant: 'destructive' });
+      toast({ title: 'Protected', description: 'This cell or sheet is locked.', variant: 'destructive' });
       return;
     }
     if (val.startsWith('=')) {
@@ -146,6 +146,7 @@ export default function HyperEagleSpreadsheet() {
           <div className="flex items-center gap-2">
             <UserCircle className="h-3 w-3" /> 
             {user ? user.displayName || user.email : 'HYPER EAGLE GUEST'}
+            {activeSheet.isProtected && <Lock className="h-3 w-3 ml-2 text-yellow-400" />}
           </div>
           <div className="flex items-center gap-4">
             <div className={cn(
@@ -193,7 +194,7 @@ export default function HyperEagleSpreadsheet() {
           onDeleteCol={deleteCol}
           onLock={(l) => selectionRange.forEach(c => updateCell(c, { isLocked: l }))}
           isSheetProtected={!!activeSheet.isProtected} 
-          onToggleProtectSheet={() => {}}
+          onToggleProtectSheet={toggleProtectSheet}
           onHideRows={hideRows} 
           onHideCols={hideCols} 
           onUnhideAll={unhideAll}
@@ -232,7 +233,7 @@ export default function HyperEagleSpreadsheet() {
           onMouseDown={handleMouseDown} 
           onMouseEnter={handleMouseEnter} 
           onMouseUp={handleMouseUp}
-          onDoubleClick={(c) => setEditingCell(c)} 
+          onDoubleClick={(c) => !activeSheet.isProtected && !data[c]?.isLocked && setEditingCell(c)} 
           onUpdate={handleUpdate}
           onUpdateRowHeight={updateRowHeight} 
           onUpdateColWidth={updateColWidth}
@@ -263,7 +264,10 @@ export default function HyperEagleSpreadsheet() {
               activeSheetId === s.id ? "bg-primary text-white" : "bg-secondary/20 text-muted-foreground hover:bg-secondary/40"
             )}
           >
-            <span className="truncate">{s.name}</span>
+            <span className="truncate flex items-center gap-2">
+              {s.isProtected && <Lock className="h-3 w-3 text-yellow-500" />}
+              {s.name}
+            </span>
             {Object.keys(workbook).length > 1 && (
               <X 
                 className="h-3 w-3 opacity-0 group-hover:opacity-100" 
@@ -282,6 +286,7 @@ export default function HyperEagleSpreadsheet() {
           <span>HYPER EAGLE ONLINE SUITE v1.2</span> 
           <ChevronRight className="h-3 w-3" /> 
           <span>{activeSheet.name}</span>
+          {activeSheet.isProtected && <span className="ml-2 bg-yellow-500 text-primary px-1.5 rounded">LOCKED</span>}
           {isSyncing ? (
             <span className="flex items-center gap-1 ml-2"><Loader2 className="h-3 w-3 animate-spin" /> SYNCING...</span>
           ) : lastSaved ? (

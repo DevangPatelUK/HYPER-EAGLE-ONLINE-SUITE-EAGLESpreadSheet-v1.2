@@ -24,7 +24,7 @@ interface ClipboardData {
 
 export function useSheetStore(rowsCount: number, colsCount: number) {
   const [workbook, setWorkbook] = useState<WorkbookData>({
-    'sheet-1': { id: 'sheet-1', name: 'EAGLESpreadSheet', data: {}, rowHeights: {}, colWidths: {}, charts: [], hiddenRows: {}, hiddenCols: {}, frozenRows: 0, frozenCols: 0 }
+    'sheet-1': { id: 'sheet-1', name: 'EAGLESpreadSheet', data: {}, rowHeights: {}, colWidths: {}, charts: [], hiddenRows: {}, hiddenCols: {}, frozenRows: 0, frozenCols: 0, isProtected: false }
   });
   const [activeSheetId, setActiveSheetId] = useState('sheet-1');
   const [past, setPast] = useState<WorkbookData[]>([]);
@@ -41,7 +41,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
   const activeSheet = workbook[activeSheetId] || Object.values(workbook)[0];
   const data = activeSheet.data;
 
-  // Initial load
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -53,7 +52,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     }
   }, []);
 
-  // Save to local storage on change
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(workbook));
   }, [workbook]);
@@ -126,6 +124,7 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       setClipboard({ cells, rowCount: 1, colCount: 1 });
       e.preventDefault();
     } else if (cmd && e.key === 'v' && clipboard) {
+      if (activeSheet.isProtected) return;
       const target = coordinateToIndex(selectionAnchor!)!;
       const newWb = JSON.parse(JSON.stringify(workbook));
       const sheet = newWb[activeSheetId];
@@ -144,6 +143,7 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       }
       e.preventDefault();
     } else if (e.key === 'Backspace' || e.key === 'Delete') {
+      if (activeSheet.isProtected) return;
       const newWb = JSON.parse(JSON.stringify(workbook));
       selectionRange.forEach(c => { 
         if (newWb[activeSheetId].data[c]) {
@@ -163,6 +163,7 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       moveSelection(e.key, cmd, e.shiftKey); 
       e.preventDefault(); 
     } else if (e.key.length === 1 && !cmd && !e.altKey) { 
+      if (activeSheet.isProtected) return;
       setEditingCell(selectionAnchor); 
       setEditingValue(e.key); 
       e.preventDefault(); 
@@ -182,7 +183,7 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     handleMouseUp: () => setIsDragging(false),
     addSheet: () => { 
       const id = `sheet-${Date.now()}`; 
-      commitChange({ ...workbook, [id]: { id, name: `EagleSheet${Object.keys(workbook).length + 1}`, data: {}, rowHeights: {}, colWidths: {}, charts: [], hiddenRows: {}, hiddenCols: {}, frozenRows: 0, frozenCols: 0 } }); 
+      commitChange({ ...workbook, [id]: { id, name: `EagleSheet${Object.keys(workbook).length + 1}`, data: {}, rowHeights: {}, colWidths: {}, charts: [], hiddenRows: {}, hiddenCols: {}, frozenRows: 0, frozenCols: 0, isProtected: false } }); 
       setActiveSheetId(id); 
     },
     renameSheet: (id: string, name: string) => { 
@@ -232,14 +233,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       });
       sheet.rowHeights = newRowHeights;
 
-      const newHiddenRows: Record<number, boolean> = {};
-      Object.entries(sheet.hiddenRows || {}).forEach(([r, h]) => {
-        const ri = parseInt(r);
-        if (ri >= row) newHiddenRows[ri + 1] = h as boolean;
-        else newHiddenRows[ri] = h as boolean;
-      });
-      sheet.hiddenRows = newHiddenRows;
-
       commitChange(recalculateAll(newWb));
     },
     deleteRow: () => {
@@ -256,25 +249,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
         else newData[coord] = cell;
       });
       sheet.data = newData;
-
-      const newRowHeights: Record<number, number> = {};
-      Object.entries(sheet.rowHeights || {}).forEach(([r, h]) => {
-        const ri = parseInt(r);
-        if (ri === row) return;
-        if (ri > row) newRowHeights[ri - 1] = h as number;
-        else newRowHeights[ri] = h as number;
-      });
-      sheet.rowHeights = newRowHeights;
-
-      const newHiddenRows: Record<number, boolean> = {};
-      Object.entries(sheet.hiddenRows || {}).forEach(([r, h]) => {
-        const ri = parseInt(r);
-        if (ri === row) return;
-        if (ri > row) newHiddenRows[ri - 1] = h as boolean;
-        else newHiddenRows[ri] = h as boolean;
-      });
-      sheet.hiddenRows = newHiddenRows;
-
       commitChange(recalculateAll(newWb));
     },
     insertCol: () => {
@@ -290,15 +264,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
         else newData[coord] = cell;
       });
       sheet.data = newData;
-
-      const newColWidths: Record<number, number> = {};
-      Object.entries(sheet.colWidths || {}).forEach(([c, w]) => {
-        const ci = parseInt(c);
-        if (ci >= col) newColWidths[ci + 1] = w as number;
-        else newColWidths[ci] = w as number;
-      });
-      sheet.colWidths = newColWidths;
-
       commitChange(recalculateAll(newWb));
     },
     deleteCol: () => {
@@ -315,16 +280,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
         else newData[coord] = cell;
       });
       sheet.data = newData;
-
-      const newColWidths: Record<number, number> = {};
-      Object.entries(sheet.colWidths || {}).forEach(([c, w]) => {
-        const ci = parseInt(c);
-        if (ci === col) return;
-        if (ci > col) newColWidths[ci - 1] = w as number;
-        else newColWidths[ci] = w as number;
-      });
-      sheet.colWidths = newColWidths;
-
       commitChange(recalculateAll(newWb));
     },
     freezeRows: (n: number) => {
@@ -361,6 +316,11 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       next[activeSheetId].hiddenCols = {};
       commitChange(next);
     },
+    toggleProtectSheet: () => {
+      const next = JSON.parse(JSON.stringify(workbook));
+      next[activeSheetId].isProtected = !next[activeSheetId].isProtected;
+      commitChange(next);
+    },
     sortRange: (dir: 'asc' | 'desc') => {
       if (!selectionAnchor || !selectionFocus) return;
       const next = JSON.parse(JSON.stringify(workbook));
@@ -373,7 +333,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       const minCol = Math.min(start.col, end.col);
       const maxCol = Math.max(start.col, end.col);
 
-      // Get row objects to sort
       const rowsToSort: { index: number; data: Record<string, CellData>; sortValue: string }[] = [];
       for (let r = minRow; r <= maxRow; r++) {
         const rowData: Record<string, CellData> = {};
@@ -385,20 +344,17 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
         rowsToSort.push({ index: r, data: rowData, sortValue: firstColValue });
       }
 
-      // Sort row objects
       rowsToSort.sort((a, b) => {
         const va = a.sortValue, vb = b.sortValue;
         const res = va.localeCompare(vb, undefined, { numeric: true });
         return dir === 'asc' ? res : -res;
       });
 
-      // Write back
       rowsToSort.forEach((rowObj, sortedIdx) => {
         const targetRow = minRow + sortedIdx;
         for (let c = minCol; c <= maxCol; c++) {
-          const sourceCoord = indexToCoordinate(rowObj.index, c);
           const targetCoord = indexToCoordinate(targetRow, c);
-          sheet.data[targetCoord] = rowObj.data[sourceCoord];
+          sheet.data[targetCoord] = rowObj.data[indexToCoordinate(rowObj.index, c)];
         }
       });
 
