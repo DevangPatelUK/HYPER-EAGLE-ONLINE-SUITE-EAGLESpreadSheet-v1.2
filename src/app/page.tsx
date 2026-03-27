@@ -9,6 +9,7 @@ import { HelpDialog } from './components/spreadsheet/HelpDialog';
 import { ChartOverlay } from './components/spreadsheet/ChartOverlay';
 import { useSheetStore } from './lib/sheet-store';
 import { evaluateFormula, coordinateToIndex } from './lib/formula-engine';
+import { exportToCSV, exportToXLSX, exportToPDF } from './lib/export-utils';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import { Plus, X, ChevronRight, UserCircle, Wifi, WifiOff, Loader2, Lock } from 'lucide-react';
@@ -227,7 +228,9 @@ export default function HyperEagleSpreadsheet() {
           onMerge={mergeCells} 
           onUnmerge={unmergeCells}
           onImportCSV={() => {}} 
-          onExportCSV={() => {}} 
+          onExportCSV={() => exportToCSV(activeSheet)} 
+          onExportXLSX={() => exportToXLSX(workbook)} 
+          onExportPDF={() => exportToPDF(activeSheet)}
           onExportJSON={() => {}} 
           onType={(t, opts) => updateCells(selectionRange, { type: t, options: opts })} 
         />

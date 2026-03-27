@@ -42,7 +42,11 @@ import {
   Filter as FilterIcon,
   TableProperties,
   Plus as PlusIcon,
-  Minus as MinusIcon
+  Minus as MinusIcon,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  FileCode
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -100,6 +104,8 @@ interface ToolbarProps {
   onAddChart: (type: ChartType) => void;
   onImportCSV: (file: File) => void;
   onExportCSV: () => void;
+  onExportXLSX: () => void;
+  onExportPDF: () => void;
   onExportJSON: () => void;
   onPrint: () => void;
   onAddComment: () => void;
@@ -174,6 +180,9 @@ export const Toolbar = memo(({
   onUnmerge,
   onValidation,
   onConditionalFormat,
+  onExportCSV,
+  onExportXLSX,
+  onExportPDF,
   canUndo,
   canRedo,
   sheetName,
@@ -201,6 +210,15 @@ export const Toolbar = memo(({
           <DropdownMenuContent align="start" className="min-w-[200px]">
             <DropdownMenuItem onSelect={onNew}><FilePlus className="h-4 w-4 mr-2" />New Sheet</DropdownMenuItem>
             <DropdownMenuItem onSelect={onSave}><Save className="h-4 w-4 mr-2" />Save Workbook</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger><Download className="h-4 w-4 mr-2" />Export As...</DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onSelect={onExportCSV}><FileCode className="h-4 w-4 mr-2" />CSV (.csv)</DropdownMenuItem>
+                <DropdownMenuItem onSelect={onExportXLSX}><FileSpreadsheet className="h-4 w-4 mr-2" />Excel (.xlsx)</DropdownMenuItem>
+                <DropdownMenuItem onSelect={onExportPDF}><FileText className="h-4 w-4 mr-2" />PDF (.pdf)</DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onPrint}><Printer className="h-4 w-4 mr-2" />Print Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
