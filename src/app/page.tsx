@@ -32,7 +32,7 @@ export default function HyperEagleSpreadsheet() {
     selectedCell, selectionRange, editingCell, setEditingCell, editingValue, setEditingValue,
     updateCell, updateRowHeight, updateColWidth, handleMouseDown, handleMouseEnter, handleMouseUp,
     handleKeyDown, onFinishEdit, addSheet, renameSheet, removeSheet, undo, redo, canUndo, canRedo,
-    isDirty, addChart, removeChart, insertRow, deleteRow, freezeRows, freezeCols, hideRows, hideCols, unhideAll, sortRange
+    isDirty, addChart, removeChart, insertRow, deleteRow, insertCol, deleteCol, freezeRows, freezeCols, hideRows, hideCols, unhideAll, sortRange
   } = useSheetStore(rows, cols);
 
   const [aiOpen, setAiOpen] = useState(false);
@@ -189,11 +189,11 @@ export default function HyperEagleSpreadsheet() {
           onClear={() => selectionRange.forEach(c => updateCell(c, { value: '', formula: '' }))}
           onInsertRow={insertRow} 
           onDeleteRow={deleteRow}
+          onInsertCol={insertCol}
+          onDeleteCol={deleteCol}
           onLock={(l) => selectionRange.forEach(c => updateCell(c, { isLocked: l }))}
           isSheetProtected={!!activeSheet.isProtected} 
           onToggleProtectSheet={() => {}}
-          onInsertCol={() => {}} 
-          onDeleteCol={() => {}} 
           onHideRows={hideRows} 
           onHideCols={hideCols} 
           onUnhideAll={unhideAll}

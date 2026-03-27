@@ -19,6 +19,7 @@ import {
   Percent,
   ChevronDown,
   Rows,
+  Columns,
   Eraser,
   Printer,
   HelpCircle,
@@ -133,6 +134,8 @@ export const Toolbar = memo(({
   onClear,
   onInsertRow,
   onDeleteRow,
+  onInsertCol,
+  onDeleteCol,
   onHideRows,
   onHideCols,
   onUnhideAll,
@@ -183,15 +186,17 @@ export const Toolbar = memo(({
           <DropdownMenuTrigger className="flex items-center gap-1 hover:text-primary cursor-pointer transition-colors px-1 outline-none">
             Edit <ChevronDown className="h-2 w-2" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="min-w-[200px]">
+          <DropdownMenuContent align="start" className="min-w-[220px]">
             <DropdownMenuItem onClick={onUndo} disabled={!canUndo}><Undo className="h-4 w-4 mr-2" />Undo (Ctrl+Z)</DropdownMenuItem>
             <DropdownMenuItem onClick={onRedo} disabled={!canRedo}><Redo className="h-4 w-4 mr-2" />Redo (Ctrl+Y)</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onInsertRow}><Rows className="h-4 w-4 mr-2" />Insert Row (Ctrl+Shift++)</DropdownMenuItem>
-            <DropdownMenuItem onClick={onDeleteRow}><Trash2 className="h-4 w-4 mr-2" />Delete Row (Ctrl+-)</DropdownMenuItem>
+            <DropdownMenuItem onClick={onInsertRow}><Rows className="h-4 w-4 mr-2" />Insert Row</DropdownMenuItem>
+            <DropdownMenuItem onClick={onDeleteRow}><Trash2 className="h-4 w-4 mr-2" />Delete Row</DropdownMenuItem>
+            <DropdownMenuItem onClick={onInsertCol}><Columns className="h-4 w-4 mr-2" />Insert Column</DropdownMenuItem>
+            <DropdownMenuItem onClick={onDeleteCol}><Trash2 className="h-4 w-4 mr-2" />Delete Column</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => onSort('asc')}><ChevronRight className="h-4 w-4 mr-2 rotate-[-90deg]" />Sort Ascending</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onSort('desc')}><ChevronRight className="h-4 w-4 mr-2 rotate-[90deg]" />Sort Descending</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onSort('asc')}><ChevronRight className="h-4 w-4 mr-2 rotate-[-90deg]" />Sort Range Ascending</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onSort('desc')}><ChevronRight className="h-4 w-4 mr-2 rotate-[90deg]" />Sort Range Descending</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onClear}><Eraser className="h-4 w-4 mr-2" />Clear Selection (Del)</DropdownMenuItem>
           </DropdownMenuContent>

@@ -215,6 +215,7 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       const { row } = coordinateToIndex(selectionAnchor)!;
       const newWb = JSON.parse(JSON.stringify(workbook));
       const sheet = newWb[activeSheetId];
+      
       const newData: SpreadsheetData = {};
       Object.entries(sheet.data).forEach(([coord, cell]) => {
         const idx = coordinateToIndex(coord)!;
@@ -222,6 +223,23 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
         else newData[coord] = cell;
       });
       sheet.data = newData;
+
+      const newRowHeights: Record<number, number> = {};
+      Object.entries(sheet.rowHeights || {}).forEach(([r, h]) => {
+        const ri = parseInt(r);
+        if (ri >= row) newRowHeights[ri + 1] = h as number;
+        else newRowHeights[ri] = h as number;
+      });
+      sheet.rowHeights = newRowHeights;
+
+      const newHiddenRows: Record<number, boolean> = {};
+      Object.entries(sheet.hiddenRows || {}).forEach(([r, h]) => {
+        const ri = parseInt(r);
+        if (ri >= row) newHiddenRows[ri + 1] = h as boolean;
+        else newHiddenRows[ri] = h as boolean;
+      });
+      sheet.hiddenRows = newHiddenRows;
+
       commitChange(recalculateAll(newWb));
     },
     deleteRow: () => {
@@ -229,6 +247,7 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       const { row } = coordinateToIndex(selectionAnchor)!;
       const newWb = JSON.parse(JSON.stringify(workbook));
       const sheet = newWb[activeSheetId];
+
       const newData: SpreadsheetData = {};
       Object.entries(sheet.data).forEach(([coord, cell]) => {
         const idx = coordinateToIndex(coord)!;
@@ -237,6 +256,75 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
         else newData[coord] = cell;
       });
       sheet.data = newData;
+
+      const newRowHeights: Record<number, number> = {};
+      Object.entries(sheet.rowHeights || {}).forEach(([r, h]) => {
+        const ri = parseInt(r);
+        if (ri === row) return;
+        if (ri > row) newRowHeights[ri - 1] = h as number;
+        else newRowHeights[ri] = h as number;
+      });
+      sheet.rowHeights = newRowHeights;
+
+      const newHiddenRows: Record<number, boolean> = {};
+      Object.entries(sheet.hiddenRows || {}).forEach(([r, h]) => {
+        const ri = parseInt(r);
+        if (ri === row) return;
+        if (ri > row) newHiddenRows[ri - 1] = h as boolean;
+        else newHiddenRows[ri] = h as boolean;
+      });
+      sheet.hiddenRows = newHiddenRows;
+
+      commitChange(recalculateAll(newWb));
+    },
+    insertCol: () => {
+      if (!selectionAnchor) return;
+      const { col } = coordinateToIndex(selectionAnchor)!;
+      const newWb = JSON.parse(JSON.stringify(workbook));
+      const sheet = newWb[activeSheetId];
+      
+      const newData: SpreadsheetData = {};
+      Object.entries(sheet.data).forEach(([coord, cell]) => {
+        const idx = coordinateToIndex(coord)!;
+        if (idx.col >= col) newData[indexToCoordinate(idx.row, idx.col + 1)] = cell;
+        else newData[coord] = cell;
+      });
+      sheet.data = newData;
+
+      const newColWidths: Record<number, number> = {};
+      Object.entries(sheet.colWidths || {}).forEach(([c, w]) => {
+        const ci = parseInt(c);
+        if (ci >= col) newColWidths[ci + 1] = w as number;
+        else newColWidths[ci] = w as number;
+      });
+      sheet.colWidths = newColWidths;
+
+      commitChange(recalculateAll(newWb));
+    },
+    deleteCol: () => {
+      if (!selectionAnchor) return;
+      const { col } = coordinateToIndex(selectionAnchor)!;
+      const newWb = JSON.parse(JSON.stringify(workbook));
+      const sheet = newWb[activeSheetId];
+
+      const newData: SpreadsheetData = {};
+      Object.entries(sheet.data).forEach(([coord, cell]) => {
+        const idx = coordinateToIndex(coord)!;
+        if (idx.col === col) return;
+        if (idx.col > col) newData[indexToCoordinate(idx.row, idx.col - 1)] = cell;
+        else newData[coord] = cell;
+      });
+      sheet.data = newData;
+
+      const newColWidths: Record<number, number> = {};
+      Object.entries(sheet.colWidths || {}).forEach(([c, w]) => {
+        const ci = parseInt(c);
+        if (ci === col) return;
+        if (ci > col) newColWidths[ci - 1] = w as number;
+        else newColWidths[ci] = w as number;
+      });
+      sheet.colWidths = newColWidths;
+
       commitChange(recalculateAll(newWb));
     },
     freezeRows: (n: number) => {
@@ -278,18 +366,42 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       const next = JSON.parse(JSON.stringify(workbook));
       const sheet = next[activeSheetId];
       
-      const coords = [...selectionRange].sort((a, b) => {
-        const ia = coordinateToIndex(a)!, ib = coordinateToIndex(b)!;
-        return ia.row === ib.row ? ia.col - ib.col : ia.row - ib.row;
+      const start = coordinateToIndex(selectionAnchor)!;
+      const end = coordinateToIndex(selectionFocus)!;
+      const minRow = Math.min(start.row, end.row);
+      const maxRow = Math.max(start.row, end.row);
+      const minCol = Math.min(start.col, end.col);
+      const maxCol = Math.max(start.col, end.col);
+
+      // Get row objects to sort
+      const rowsToSort: { index: number; data: Record<string, CellData>; sortValue: string }[] = [];
+      for (let r = minRow; r <= maxRow; r++) {
+        const rowData: Record<string, CellData> = {};
+        for (let c = minCol; c <= maxCol; c++) {
+          const coord = indexToCoordinate(r, c);
+          rowData[coord] = sheet.data[coord] || { value: '', formula: '' };
+        }
+        const firstColValue = rowData[indexToCoordinate(r, minCol)]?.value || '';
+        rowsToSort.push({ index: r, data: rowData, sortValue: firstColValue });
+      }
+
+      // Sort row objects
+      rowsToSort.sort((a, b) => {
+        const va = a.sortValue, vb = b.sortValue;
+        const res = va.localeCompare(vb, undefined, { numeric: true });
+        return dir === 'asc' ? res : -res;
       });
 
-      const values = coords.map(c => sheet.data[c] || { value: '', formula: '' });
-      values.sort((a, b) => {
-        const va = a.value || '', vb = b.value || '';
-        return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      // Write back
+      rowsToSort.forEach((rowObj, sortedIdx) => {
+        const targetRow = minRow + sortedIdx;
+        for (let c = minCol; c <= maxCol; c++) {
+          const sourceCoord = indexToCoordinate(rowObj.index, c);
+          const targetCoord = indexToCoordinate(targetRow, c);
+          sheet.data[targetCoord] = rowObj.data[sourceCoord];
+        }
       });
 
-      coords.forEach((c, i) => sheet.data[c] = values[i]);
       commitChange(recalculateAll(next));
     },
     addChart: (type: ChartType) => { 
