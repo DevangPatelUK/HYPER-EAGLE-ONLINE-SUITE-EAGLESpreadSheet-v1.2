@@ -18,48 +18,22 @@ import {
   Palette,
   CircleDollarSign,
   Percent,
-  Hash,
-  Download,
-  Upload,
-  FileJson,
-  FileSpreadsheet,
   ChevronDown,
   Rows,
   Columns,
   Eraser,
-  ArrowDownAZ,
-  ArrowUpAZ,
-  Copy,
-  Type,
-  Calendar,
-  CheckSquare,
-  ListFilter,
-  LetterText,
-  Combine,
-  Split,
-  EyeOff,
-  Eye,
-  Sparkles,
-  Filter,
-  FilterX,
-  PanelTop,
-  PanelLeft,
-  Layout,
-  MessageSquarePlus,
-  Zap,
-  ShieldCheck,
-  Lock,
-  Unlock,
-  Shield,
-  BarChart,
-  LineChart as LineChartIcon,
-  PieChart as PieChartIcon,
-  AreaChart as AreaChartIcon,
-  ScatterChart as ScatterChartIcon,
   Printer,
   HelpCircle,
   BookOpen,
-  WrapText
+  WrapText,
+  FileSpreadsheet,
+  FileJson,
+  Upload,
+  Sparkles,
+  MessageSquarePlus,
+  PanelTop,
+  PanelLeft,
+  ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -75,10 +49,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuCheckboxItem
 } from "@/components/ui/dropdown-menu";
 import { ValidationRule, ConditionalFormatRule, ChartType } from '@/app/lib/formula-engine';
 
@@ -140,13 +110,6 @@ const BG_COLORS = [
   { name: 'Gray', value: '#f3f4f6' },
 ];
 
-const TEXT_COLORS = [
-  { name: 'Black', value: '#000000' },
-  { name: 'Dark Green', value: '#14532d' },
-  { name: 'Green', value: '#16a34a' },
-  { name: 'Gray', value: '#4b5563' },
-];
-
 export const Toolbar: React.FC<ToolbarProps> = ({
   onBold,
   onItalic,
@@ -154,9 +117,7 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onWrapText,
   onAlign,
   onFormat,
-  onType,
   onBgColor,
-  onTextColor,
   onNew,
   onSave,
   onDelete,
@@ -167,50 +128,17 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   onClear,
   onInsertRow,
   onDeleteRow,
-  onInsertCol,
-  onDeleteCol,
-  onHideRows,
-  onHideCols,
-  onUnhideAll,
   onFreezeRows,
   onFreezeCols,
-  onSort,
-  onFilter,
-  onClearFilters,
-  onMerge,
-  onUnmerge,
-  onAddChart,
-  onImportCSV,
-  onExportCSV,
-  onExportJSON,
   onPrint,
   onAddComment,
-  onValidation,
-  onConditionalFormat,
-  onLock,
-  onToggleProtectSheet,
-  isSheetProtected,
   canUndo,
   canRedo,
   sheetName,
   onNameChange,
 }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleImportClick = () => fileInputRef.current?.click();
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      onImportCSV(file);
-      e.target.value = '';
-    }
-  };
-
   return (
     <div className="flex flex-col bg-white border-b border-border shadow-sm print:hidden">
-      <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleFileChange} />
-      
       <div className="flex items-center gap-4 px-4 py-1 border-b bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-widest select-none">
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-1 hover:text-primary cursor-pointer transition-colors px-1 outline-none">
@@ -219,10 +147,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
           <DropdownMenuContent align="start" className="min-w-[200px]">
             <DropdownMenuItem onClick={onNew}><FilePlus className="h-4 w-4 mr-2" />New Sheet</DropdownMenuItem>
             <DropdownMenuItem onClick={onSave}><Save className="h-4 w-4 mr-2" />Save Workbook</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleImportClick}><Upload className="h-4 w-4 mr-2" />Import CSV</DropdownMenuItem>
-            <DropdownMenuItem onClick={onExportCSV}><FileSpreadsheet className="h-4 w-4 mr-2" />Export as CSV</DropdownMenuItem>
-            <DropdownMenuItem onClick={onExportJSON}><FileJson className="h-4 w-4 mr-2" />Export as JSON</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onPrint}><Printer className="h-4 w-4 mr-2" />Print Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -235,10 +159,13 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             Edit <ChevronDown className="h-2 w-2" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="min-w-[200px]">
-            <DropdownMenuItem onClick={onUndo} disabled={!canUndo}><Undo className="h-4 w-4 mr-2" />Undo</DropdownMenuItem>
-            <DropdownMenuItem onClick={onRedo} disabled={!canRedo}><Redo className="h-4 w-4 mr-2" />Redo</DropdownMenuItem>
+            <DropdownMenuItem onClick={onUndo} disabled={!canUndo}><Undo className="h-4 w-4 mr-2" />Undo (Ctrl+Z)</DropdownMenuItem>
+            <DropdownMenuItem onClick={onRedo} disabled={!canRedo}><Redo className="h-4 w-4 mr-2" />Redo (Ctrl+Y)</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={onClear}><Eraser className="h-4 w-4 mr-2" />Clear Selection</DropdownMenuItem>
+            <DropdownMenuItem onClick={onInsertRow}><Rows className="h-4 w-4 mr-2" />Insert Row (Ctrl+Shift++)</DropdownMenuItem>
+            <DropdownMenuItem onClick={onDeleteRow}><Trash2 className="h-4 w-4 mr-2" />Delete Row (Ctrl+-)</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={onClear}><Eraser className="h-4 w-4 mr-2" />Clear Selection (Del)</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -272,12 +199,8 @@ export const Toolbar: React.FC<ToolbarProps> = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="min-w-[220px]">
               <DropdownMenuItem onClick={onHelp}>
-                <BookOpen className="h-4 w-4 mr-2" /> Documentation
+                <BookOpen className="h-4 w-4 mr-2" /> Documentation & Shortcuts
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <div className="px-2 py-1.5 text-[10px] text-muted-foreground uppercase font-bold tracking-widest">
-                HYPER EAGLE SUITE
-              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

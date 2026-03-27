@@ -39,6 +39,7 @@ export const Cell = memo(({
   const [localValue, setLocalValue] = useState('');
   const [showAutocomplete, setShowAutocomplete] = useState(false);
 
+  // Sync internal state with prop changes (e.g. formula calculation)
   useEffect(() => {
     if (!isEditing) {
       setLocalValue(data?.formula || data?.value || '');
@@ -47,6 +48,7 @@ export const Cell = memo(({
     }
   }, [data?.formula, data?.value, isEditing, initialValue]);
 
+  // Handle focus and text selection on edit start
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
@@ -79,6 +81,15 @@ export const Cell = memo(({
     }
   };
 
+  const styleProps = { 
+    backgroundColor: evaluateConditionalFormatting(data || { value: '', formula: '' }).backgroundColor || data?.backgroundColor,
+    color: evaluateConditionalFormatting(data || { value: '', formula: '' }).textColor || data?.textColor,
+    fontWeight: data?.bold ? 'bold' : 'normal',
+    fontStyle: data?.italic ? 'italic' : 'normal',
+    textDecoration: data?.underline ? 'underline' : 'none',
+    textAlign: data?.align || 'left'
+  };
+
   const cellContent = (
     <div
       className={cn(
@@ -89,26 +100,19 @@ export const Cell = memo(({
         data?.isLocked && "bg-muted/30 cursor-not-allowed",
         data?.wrapText ? "whitespace-normal break-words py-1" : "whitespace-nowrap"
       )}
-      style={{ 
-        backgroundColor: evaluateConditionalFormatting(data || { value: '', formula: '' }).backgroundColor || data?.backgroundColor,
-        color: evaluateConditionalFormatting(data || { value: '', formula: '' }).textColor || data?.textColor,
-        fontWeight: data?.bold ? 'bold' : 'normal',
-        fontStyle: data?.italic ? 'italic' : 'normal',
-        textDecoration: data?.underline ? 'underline' : 'none',
-        textAlign: data?.align || 'left'
-      }}
+      style={styleProps as React.CSSProperties}
       onMouseDown={(e) => onMouseDown(coord, e.shiftKey)}
       onMouseEnter={() => onMouseEnter(coord)}
       onDoubleClick={() => !data?.isLocked && onDoubleClick(coord)}
     >
       {data?.comment && <div className="absolute top-0 right-0 border-t-[6px] border-t-accent border-l-[6px] border-l-transparent" />}
-      {data?.isLocked && <div className="absolute bottom-0 right-0 p-0.5 opacity-30"><Lock className="h-2 w-2" /></div>}
+      {data?.isLocked && <div className="absolute bottom-0 right-0 p-0.5 opacity-30 text-primary"><Lock className="h-2 w-2" /></div>}
 
       {isEditing ? (
         <div className="w-full h-full relative">
           <input
             ref={inputRef}
-            className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white"
+            className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary"
             value={localValue}
             onChange={(e) => { 
               setLocalValue(e.target.value); 

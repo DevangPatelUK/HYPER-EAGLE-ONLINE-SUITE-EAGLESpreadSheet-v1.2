@@ -25,27 +25,6 @@
     --ring: 142 76% 36%;
     --radius: 0.5rem;
   }
-  .dark {
-    --background: 142 50% 5%;
-    --foreground: 142 20% 98%;
-    --card: 142 50% 5%;
-    --card-foreground: 142 20% 98%;
-    --popover: 142 50% 5%;
-    --popover-foreground: 142 20% 98%;
-    --primary: 142 76% 36%;
-    --primary-foreground: 142 50% 5%;
-    --secondary: 142 30% 15%;
-    --secondary-foreground: 142 20% 98%;
-    --muted: 142 30% 15%;
-    --muted-foreground: 142 20% 65%;
-    --accent: 142 72% 29%;
-    --accent-foreground: 142 20% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 142 30% 18%;
-    --input: 142 30% 18%;
-    --ring: 142 76% 36%;
-  }
 }
 
 @layer base {
@@ -57,19 +36,6 @@
   }
 }
 
-/* Custom Spreadsheet Styles */
-.spreadsheet-grid {
-  grid-template-columns: 40px repeat(var(--cols), minmax(100px, 1fr));
-}
-
-.cell-selected {
-  @apply ring-2 ring-primary ring-inset z-10;
-}
-
-.cell-editing {
-  @apply bg-white z-20 outline-none p-0;
-}
-
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
@@ -78,7 +44,7 @@
   scrollbar-width: none;
 }
 
-/* Print Specific Styles */
+/* Professional Print Styles */
 @media print {
   @page {
     margin: 0;
@@ -98,16 +64,21 @@
     size: portrait;
   }
 
-  [role="columnheader"].sticky,
-  [role="rowheader"].sticky {
-    position: relative !important;
-    top: 0 !important;
-    left: 0 !important;
+  /* Hide UI elements during print */
+  .print\:hidden, 
+  header[role="banner"], 
+  nav, 
+  footer, 
+  [role="dialog"],
+  .formula-bar,
+  .toolbar {
+    display: none !important;
   }
 
   main {
     overflow: visible !important;
     display: block !important;
+    padding: 1in !important;
   }
 
   div[role="grid"] {
@@ -116,6 +87,7 @@
     width: 100% !important;
   }
 
+  /* Ensure colors and borders show correctly */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;

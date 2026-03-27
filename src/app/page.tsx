@@ -52,18 +52,12 @@ export default function SpreadsheetPage() {
     updateCell,
     updateRowHeight,
     updateColWidth,
-    mergeSelection,
-    unmergeSelection,
     insertRow,
     deleteRow,
-    insertCol,
-    deleteCol,
     hideRows,
     hideCols,
     setFrozenState,
     sortRange,
-    applyFilter,
-    clearFilters,
     addChart,
     removeChart,
     handleMouseDown,
@@ -81,6 +75,7 @@ export default function SpreadsheetPage() {
     selectRow,
     selectCol,
     isDirty,
+    unhideAll,
   } = useSheetStore(rows, cols);
 
   const [aiOpen, setAiOpen] = useState(false);
@@ -90,15 +85,17 @@ export default function SpreadsheetPage() {
   const [isOnline, setIsOnline] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  const activeSheet = workbook[activeSheetId];
+  const activeSheet = workbook[activeSheetId] || Object.values(workbook)[0];
   const printSettings = activeSheet?.printSettings || DEFAULT_PRINT_SETTINGS;
 
+  // Ensure grid container always has focus for keyboard shortcuts
   useEffect(() => {
     if (!editingCell && containerRef.current) {
       containerRef.current.focus();
     }
   }, [editingCell]);
 
+  // Network status listener
   useEffect(() => {
     if (typeof window === 'undefined') return;
     setIsOnline(navigator.onLine);
@@ -112,6 +109,7 @@ export default function SpreadsheetPage() {
     };
   }, []);
 
+  // Firestore Sync Listener
   useEffect(() => {
     if (!user || !db) return;
     const userDocRef = doc(db, 'workbooks', user.uid);
@@ -124,7 +122,8 @@ export default function SpreadsheetPage() {
           if (cloudData.updatedAt) {
             setLastSaved(cloudData.updatedAt.toDate());
           }
-          setTimeout(() => { isRemoteUpdate.current = false; }, 100);
+          // Debounce reset of remote update flag
+          setTimeout(() => { isRemoteUpdate.current = false; }, 200);
         }
       }
     }, async (err) => {
@@ -133,8 +132,9 @@ export default function SpreadsheetPage() {
     return () => unsubscribe();
   }, [user, db, setWorkbook]);
 
+  // Autosave Logic
   const handleSave = useCallback(() => {
-    if (!user || !db || isRemoteUpdate.current) return;
+    if (!user || !db || isRemoteUpdate.current || !isDirty.current) return;
     
     setIsSyncing(true);
     const userDocRef = doc(db, 'workbooks', user.uid);
@@ -165,10 +165,6 @@ export default function SpreadsheetPage() {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
     };
   }, [workbook, user, db, handleSave, isDirty]);
-
-  const handleSignIn = () => {
-    toast({ title: "Coming Soon", description: "Cloud authentication for HYPER EAGLE ONLINE is being provisioned." });
-  };
 
   const handleUpdate = (coord: string, val: string) => {
     const cell = data[coord];
@@ -206,7 +202,7 @@ export default function SpreadsheetPage() {
     >
       
       {printSettings.headerText && (
-        <div className="hidden print:flex w-full justify-center py-4 border-b mb-4 text-sm font-semibold uppercase tracking-widest">
+        <div className="hidden print:flex w-full justify-center py-4 border-b mb-4 text-sm font-semibold uppercase tracking-widest text-primary">
           {printSettings.headerText}
         </div>
       )}
@@ -222,7 +218,7 @@ export default function SpreadsheetPage() {
               {isOnline ? <Wifi className="h-3 w-3 text-green-400" /> : <WifiOff className="h-3 w-3 text-destructive" />}
               <span className={cn(isOnline ? "text-green-400" : "text-destructive")}>{isOnline ? 'Online' : 'Offline'}</span>
             </div>
-            <button onClick={handleSignIn} className="hover:underline flex items-center gap-1">
+            <button onClick={() => toast({ title: "Coming Soon", description: "Cloud authentication is being provisioned." })} className="hover:underline flex items-center gap-1">
               <LogIn className="h-3 w-3" /> Sign In
             </button>
           </div>
@@ -249,18 +245,18 @@ export default function SpreadsheetPage() {
           onClear={() => selectionRange.forEach(c => updateCell(c, { value: '', formula: '' }))}
           onInsertRow={() => selectedCell && insertRow(coordinateToIndex(selectedCell)!.row)}
           onDeleteRow={() => selectedCell && deleteRow(coordinateToIndex(selectedCell)!.row)}
-          onInsertCol={() => selectedCell && insertCol(coordinateToIndex(selectedCell)!.col)}
-          onDeleteCol={() => selectedCell && deleteCol(coordinateToIndex(selectedCell)!.col)}
+          onInsertCol={() => {}}
+          onDeleteCol={() => {}}
           onHideRows={() => selectionRange.length > 0 && hideRows(Array.from(new Set(selectionRange.map(c => coordinateToIndex(c)!.row))), true)}
           onHideCols={() => selectionRange.length > 0 && hideCols(Array.from(new Set(selectionRange.map(c => coordinateToIndex(c)!.col))), true)}
-          onUnhideAll={() => { hideRows(Array.from({ length: rows }, (_, i) => i), false); hideCols(Array.from({ length: cols }, (_, i) => i), false); }}
+          onUnhideAll={unhideAll}
           onFreezeRows={(n) => setFrozenState(n, undefined)}
           onFreezeCols={(n) => setFrozenState(undefined, n)}
           onSort={(dir) => sortRange(dir)}
-          onFilter={(op, val) => selectedCell && applyFilter(coordinateToIndex(selectedCell)!.col, op, val)}
-          onClearFilters={clearFilters}
-          onMerge={mergeSelection}
-          onUnmerge={unmergeSelection}
+          onFilter={() => {}}
+          onClearFilters={() => {}}
+          onMerge={() => {}}
+          onUnmerge={() => {}}
           onAddComment={() => { if (selectedCell) { const c = window.prompt('Note:', data[selectedCell]?.comment || ''); if (c !== null) updateCell(selectedCell, { comment: c || undefined }); } }}
           onAddChart={addChart}
           onPrint={() => setPrintOpen(true)}
