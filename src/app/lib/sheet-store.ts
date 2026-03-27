@@ -33,6 +33,11 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
   const [selectionFocus, setSelectionFocus] = useState<string | null>('A1');
   const [hoveredCell, setHoveredCell] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  
+  const [isFilling, setIsFilling] = useState(false);
+  const [fillAnchor, setFillAnchor] = useState<string | null>(null);
+  const [fillFocus, setFillFocus] = useState<string | null>(null);
+
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<string | null>(null);
   const [clipboard, setClipboard] = useState<ClipboardData | null>(null);
@@ -63,6 +68,15 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       return [selectionAnchor!];
     }
   }, [selectionAnchor, selectionFocus]);
+
+  const fillRange = useMemo(() => {
+    if (!isFilling || !fillAnchor || !fillFocus) return [];
+    try {
+      return parseRange(`${fillAnchor}:${fillFocus}`);
+    } catch (e) {
+      return [];
+    }
+  }, [isFilling, fillAnchor, fillFocus]);
 
   const recalculateAll = useCallback((wb: WorkbookData) => {
     const next = JSON.parse(JSON.stringify(wb));
@@ -100,6 +114,94 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     });
     commitChange(recalculateAll(newWb));
   }, [activeSheetId, workbook, commitChange, recalculateAll]);
+
+  const handleFillEnd = useCallback(() => {
+    if (!isFilling || !fillAnchor || !fillFocus) return;
+
+    const sourceRange = selectionRange;
+    const targetRange = fillRange;
+
+    // Filter out cells that are already in the source range
+    const cellsToFill = targetRange.filter(c => !sourceRange.includes(c));
+    if (cellsToFill.length === 0) {
+      setIsFilling(false);
+      return;
+    }
+
+    const newWb = JSON.parse(JSON.stringify(workbook));
+    const sheet = newWb[activeSheetId];
+
+    // Identify source boundaries
+    const sourceStart = coordinateToIndex(selectionAnchor!)!;
+    const sourceEnd = coordinateToIndex(selectionFocus!)!;
+    const minRow = Math.min(sourceStart.row, sourceEnd.row);
+    const maxRow = Math.max(sourceStart.row, sourceEnd.row);
+    const minCol = Math.min(sourceStart.col, sourceEnd.col);
+    const maxCol = Math.max(sourceStart.col, sourceEnd.col);
+
+    // For each column in the selection, calculate and apply the fill
+    for (let c = minCol; c <= maxCol; c++) {
+      const colValues: number[] = [];
+      let allNumbers = true;
+
+      for (let r = minRow; r <= maxRow; r++) {
+        const val = parseFloat(sheet.data[indexToCoordinate(r, c)]?.value || '');
+        if (isNaN(val)) {
+          allNumbers = false;
+          break;
+        }
+        colValues.push(val);
+      }
+
+      // If source is multiple numbers, detect linear progression
+      let step = 0;
+      if (allNumbers && colValues.length > 1) {
+        const diffs = [];
+        for (let i = 1; i < colValues.length; i++) {
+          diffs.push(colValues[i] - colValues[i-1]);
+        }
+        // Check if all differences are the same
+        const firstDiff = diffs[0];
+        const consistent = diffs.every(d => d === firstDiff);
+        if (consistent) step = firstDiff;
+        else step = 0; // Fallback to repeating if not linear
+      } else if (allNumbers && colValues.length === 1) {
+        step = 0; // Repeat the single number
+      }
+
+      // Apply fill to target cells in this column
+      const targetFocusIdx = coordinateToIndex(fillFocus)!;
+      const targetMinRow = Math.min(minRow, targetFocusIdx.row);
+      const targetMaxRow = Math.max(maxRow, targetFocusIdx.row);
+
+      for (let r = targetMinRow; r <= targetMaxRow; r++) {
+        if (r >= minRow && r <= maxRow) continue; // Skip source range
+
+        const targetCoord = indexToCoordinate(r, c);
+        const lastVal = colValues[colValues.length - 1];
+        
+        if (allNumbers) {
+          const offset = r > maxRow ? (r - maxRow) : (r - minRow);
+          const newVal = step === 0 ? lastVal : lastVal + (offset * step);
+          sheet.data[targetCoord] = { 
+            ...(sheet.data[indexToCoordinate(maxRow, c)] || { value: '', formula: '' }),
+            value: newVal.toString(), 
+            formula: '' 
+          };
+        } else {
+          // Repeating non-numeric content
+          const sourceRow = minRow + ((r - targetMinRow) % (maxRow - minRow + 1));
+          const sourceCoord = indexToCoordinate(sourceRow, c);
+          sheet.data[targetCoord] = JSON.parse(JSON.stringify(sheet.data[sourceCoord] || { value: '', formula: '' }));
+        }
+      }
+    }
+
+    commitChange(recalculateAll(newWb));
+    setIsFilling(false);
+    setFillAnchor(null);
+    setFillFocus(null);
+  }, [isFilling, fillAnchor, fillFocus, selectionRange, fillRange, workbook, activeSheetId, selectionAnchor, selectionFocus, commitChange, recalculateAll]);
 
   const formatAsTable = useCallback(() => {
     if (!selectionAnchor || !selectionFocus) return;
@@ -230,6 +332,12 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     workbook, setWorkbook, activeSheetId, setActiveSheetId, activeSheet, data,
     selectedCell: selectionAnchor, selectionRange, editingCell, setEditingCell, editingValue, setEditingValue,
     hoveredCell, setHoveredCell,
+    isFilling, fillRange,
+    handleFillStart: (coord: string) => {
+      setIsFilling(true);
+      setFillAnchor(coord);
+      setFillFocus(coord);
+    },
     updateCell, updateCells, formatAsTable, handleKeyDown, onFinishEdit, moveSelection, isDirty,
     handleMouseDown: (c: string, shift: boolean) => { 
       if (shift) setSelectionFocus(c); 
@@ -239,8 +347,12 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     handleMouseEnter: (c: string) => { 
       setHoveredCell(c);
       if (isDragging) setSelectionFocus(c); 
+      if (isFilling) setFillFocus(c);
     },
-    handleMouseUp: () => setIsDragging(false),
+    handleMouseUp: () => {
+      if (isDragging) setIsDragging(false);
+      if (isFilling) handleFillEnd();
+    },
     addSheet: () => { 
       const id = `sheet-${Date.now()}`; 
       commitChange({ ...workbook, [id]: { id, name: `EagleSheet${Object.keys(workbook).length + 1}`, data: {}, rowHeights: {}, colWidths: {}, charts: [], hiddenRows: {}, hiddenCols: {}, frozenRows: 0, frozenCols: 0, isProtected: false } }); 

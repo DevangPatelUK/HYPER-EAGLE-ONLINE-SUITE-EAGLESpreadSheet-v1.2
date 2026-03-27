@@ -11,17 +11,19 @@ interface CellProps {
   isActive: boolean;
   isInRange: boolean;
   isEditing: boolean;
+  isFillCorner?: boolean;
   initialValue?: string | null;
   onMouseDown: (coord: string, shift: boolean) => void;
   onMouseEnter: (coord: string) => void;
   onDoubleClick: (coord: string) => void;
   onUpdate: (coord: string, value: string) => void;
   onFinishEdit: (nextKey?: string) => void;
+  onFillStart?: (e: React.MouseEvent) => void;
 }
 
 export const Cell = memo(({
-  coord, data, isActive, isInRange, isEditing, initialValue,
-  onMouseDown, onMouseEnter, onDoubleClick, onUpdate, onFinishEdit,
+  coord, data, isActive, isInRange, isEditing, isFillCorner, initialValue,
+  onMouseDown, onMouseEnter, onDoubleClick, onUpdate, onFinishEdit, onFillStart
 }: CellProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [localValue, setLocalValue] = useState('');
@@ -67,7 +69,11 @@ export const Cell = memo(({
         data?.wrapText ? "whitespace-normal break-words py-1" : "whitespace-nowrap"
       )}
       style={dynamicStyle as React.CSSProperties}
-      onMouseDown={(e) => onMouseDown(coord, e.shiftKey)}
+      onMouseDown={(e) => {
+        // Don't trigger cell selection if clicking the fill handle
+        if ((e.target as HTMLElement).classList.contains('fill-handle')) return;
+        onMouseDown(coord, e.shiftKey);
+      }}
       onMouseEnter={() => onMouseEnter(coord)}
       onDoubleClick={() => !data?.isLocked && onDoubleClick(coord)}
     >
@@ -96,6 +102,17 @@ export const Cell = memo(({
         </span>
       )}
       {data?.isLocked && <div className="absolute bottom-0 right-0 p-0.5 opacity-20"><Lock className="h-2 w-2" /></div>}
+      
+      {isFillCorner && (
+        <div 
+          className="fill-handle absolute bottom-0 right-0 w-2 h-2 bg-primary cursor-crosshair z-30 border border-white hover:scale-125 transition-transform"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onFillStart?.(e);
+          }}
+        />
+      )}
     </div>
   );
 });

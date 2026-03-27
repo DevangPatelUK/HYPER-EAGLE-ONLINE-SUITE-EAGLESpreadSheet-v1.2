@@ -31,6 +31,7 @@ export default function HyperEagleSpreadsheet() {
   const {
     workbook, setWorkbook, activeSheetId, setActiveSheetId, activeSheet, data,
     selectedCell, selectionRange, editingCell, setEditingCell, editingValue, setEditingValue,
+    isFilling, fillRange, handleFillStart,
     updateCell, updateCells, updateRowHeight, updateColWidth, autoUpdateRowHeight, autoUpdateColWidth, handleMouseDown, handleMouseEnter, handleMouseUp,
     handleKeyDown, onFinishEdit, addSheet, renameSheet, removeSheet, undo, redo, canUndo, canRedo,
     isDirty, addChart, removeChart, insertRow, deleteRow, insertCol, deleteCol, freezeRows, freezeCols, hideRows, hideCols, unhideAll, sortRange, toggleProtectSheet,
@@ -307,6 +308,9 @@ export default function HyperEagleSpreadsheet() {
           onFinishEdit={handleCommitEdit} 
           onSelectRow={() => {}} 
           onSelectCol={() => {}}
+          onFillStart={handleFillStart}
+          isFilling={isFilling}
+          fillRange={fillRange}
         />
         <div className="print:hidden">
           {activeSheet.charts?.map(c => (

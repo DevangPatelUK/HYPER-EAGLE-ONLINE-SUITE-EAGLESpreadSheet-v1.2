@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect, memo } from 'react';
 import { Cell } from './Cell';
-import { indexToCoordinate, Sheet } from '@/app/lib/formula-engine';
+import { indexToCoordinate, Sheet, coordinateToIndex } from '@/app/lib/formula-engine';
 import { cn } from '@/lib/utils';
 
 interface GridProps {
@@ -25,15 +25,39 @@ interface GridProps {
   onFinishEdit: (nextKey?: string) => void;
   onSelectRow: (row: number, shift: boolean) => void;
   onSelectCol: (col: number, shift: boolean) => void;
+  onFillStart?: (coord: string) => void;
+  isFilling?: boolean;
+  fillRange?: string[];
 }
 
 export const Grid = memo(({
   rows, cols, activeSheet, selectedCell, selectionRange, editingCell, editingValue,
   onMouseDown, onMouseEnter, onMouseUp, onDoubleClick, onUpdate, 
   onUpdateRowHeight, onUpdateColWidth, onAutoUpdateRowHeight, onAutoUpdateColWidth, onFinishEdit, onSelectRow, onSelectCol,
+  onFillStart, isFilling, fillRange
 }: GridProps) => {
   const { rowHeights = {}, colWidths = {}, frozenRows = 0, frozenCols = 0, hiddenRows = {}, hiddenCols = {} } = activeSheet;
   const [resizing, setResizing] = useState<{ type: 'col' | 'row', index: number, startPos: number, startSize: number } | null>(null);
+
+  // Find the bottom-right corner of the selection range for the fill handle
+  const fillCornerCoord = useMemo(() => {
+    if (selectionRange.length === 0) return null;
+    let maxRow = -1;
+    let maxCol = -1;
+    let corner = selectionRange[0];
+
+    selectionRange.forEach(coord => {
+      const idx = coordinateToIndex(coord);
+      if (idx) {
+        if (idx.row > maxRow || (idx.row === maxRow && idx.col > maxCol)) {
+          maxRow = idx.row;
+          maxCol = idx.col;
+          corner = coord;
+        }
+      }
+    });
+    return corner;
+  }, [selectionRange]);
 
   const colOffsets = useMemo(() => {
     const offsets = [40];
@@ -76,7 +100,10 @@ export const Grid = memo(({
   }, [resizing, onUpdateColWidth, onUpdateRowHeight]);
 
   return (
-    <div className="flex-1 overflow-auto bg-background select-none relative h-full w-full scrollbar-hide transition-colors duration-300">
+    <div 
+      className="flex-1 overflow-auto bg-background select-none relative h-full w-full scrollbar-hide transition-colors duration-300"
+      onMouseUp={onMouseUp}
+    >
       <div className="grid sticky top-0 z-40" style={{ gridTemplateColumns: gridTemplate }}>
         <div className="bg-muted h-8 border-r border-b sticky left-0 z-50 flex items-center justify-center" />
         {Array.from({ length: cols }).map((_, i) => (
@@ -107,14 +134,33 @@ export const Grid = memo(({
             {Array.from({ length: cols }).map((_, c) => {
               const coord = indexToCoordinate(r, c);
               if (hiddenRows[r] || hiddenCols[c]) return null;
+              
+              const isCellInFillRange = isFilling && fillRange?.includes(coord);
+
               return (
-                <div key={coord} className={cn(r < frozenRows && "sticky z-30", c < frozenCols && "sticky z-30")} style={{ gridRowStart: r + 1, gridColumnStart: c + 2, height: rowHeights[r] || 32, top: r < frozenRows ? `${rowOffsets[r]}px` : undefined, left: c < frozenCols ? `${colOffsets[c]}px` : undefined }}>
+                <div 
+                  key={coord} 
+                  className={cn(
+                    r < frozenRows && "sticky z-30", 
+                    c < frozenCols && "sticky z-30",
+                    isCellInFillRange && "ring-1 ring-primary ring-dashed ring-inset bg-primary/5 z-20"
+                  )} 
+                  style={{ 
+                    gridRowStart: r + 1, 
+                    gridColumnStart: c + 2, 
+                    height: rowHeights[r] || 32, 
+                    top: r < frozenRows ? `${rowOffsets[r]}px` : undefined, 
+                    left: c < frozenCols ? `${colOffsets[c]}px` : undefined 
+                  }}
+                >
                   <Cell
                     coord={coord} data={activeSheet.data[coord]} isActive={selectedCell === coord}
                     isInRange={selectionRange.includes(coord)} isEditing={editingCell === coord}
+                    isFillCorner={coord === fillCornerCoord}
                     initialValue={editingCell === coord ? editingValue : null}
                     onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} onDoubleClick={onDoubleClick}
                     onUpdate={onUpdate} onFinishEdit={onFinishEdit}
+                    onFillStart={() => onFillStart?.(coord)}
                   />
                 </div>
               );
