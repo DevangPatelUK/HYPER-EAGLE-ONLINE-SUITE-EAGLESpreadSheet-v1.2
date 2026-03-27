@@ -121,7 +121,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     const sourceRange = selectionRange;
     const targetRange = fillRange;
 
-    // Filter out cells that are already in the source range
     const cellsToFill = targetRange.filter(c => !sourceRange.includes(c));
     if (cellsToFill.length === 0) {
       setIsFilling(false);
@@ -131,7 +130,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     const newWb = JSON.parse(JSON.stringify(workbook));
     const sheet = newWb[activeSheetId];
 
-    // Identify source boundaries
     const sourceStart = coordinateToIndex(selectionAnchor!)!;
     const sourceEnd = coordinateToIndex(selectionFocus!)!;
     const minRow = Math.min(sourceStart.row, sourceEnd.row);
@@ -139,7 +137,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     const minCol = Math.min(sourceStart.col, sourceEnd.col);
     const maxCol = Math.max(sourceStart.col, sourceEnd.col);
 
-    // For each column in the selection, calculate and apply the fill
     for (let c = minCol; c <= maxCol; c++) {
       const colValues: number[] = [];
       let allNumbers = true;
@@ -153,29 +150,26 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
         colValues.push(val);
       }
 
-      // If source is multiple numbers, detect linear progression
       let step = 0;
       if (allNumbers && colValues.length > 1) {
         const diffs = [];
         for (let i = 1; i < colValues.length; i++) {
           diffs.push(colValues[i] - colValues[i-1]);
         }
-        // Check if all differences are the same
         const firstDiff = diffs[0];
         const consistent = diffs.every(d => d === firstDiff);
         if (consistent) step = firstDiff;
-        else step = 0; // Fallback to repeating if not linear
+        else step = 0; 
       } else if (allNumbers && colValues.length === 1) {
-        step = 0; // Repeat the single number
+        step = 0; 
       }
 
-      // Apply fill to target cells in this column
       const targetFocusIdx = coordinateToIndex(fillFocus)!;
       const targetMinRow = Math.min(minRow, targetFocusIdx.row);
       const targetMaxRow = Math.max(maxRow, targetFocusIdx.row);
 
       for (let r = targetMinRow; r <= targetMaxRow; r++) {
-        if (r >= minRow && r <= maxRow) continue; // Skip source range
+        if (r >= minRow && r <= maxRow) continue; 
 
         const targetCoord = indexToCoordinate(r, c);
         const lastVal = colValues[colValues.length - 1];
@@ -189,7 +183,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
             formula: '' 
           };
         } else {
-          // Repeating non-numeric content
           const sourceRow = minRow + ((r - targetMinRow) % (maxRow - minRow + 1));
           const sourceCoord = indexToCoordinate(sourceRow, c);
           sheet.data[targetCoord] = JSON.parse(JSON.stringify(sheet.data[sourceCoord] || { value: '', formula: '' }));
@@ -222,13 +215,11 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
         const cell = sheet.data[coord] || { value: '', formula: '' };
         
         if (r === minRow) {
-          // Header Style
-          cell.backgroundColor = '#16a34a'; // Emerald 600
+          cell.backgroundColor = '#16a34a'; 
           cell.textColor = '#ffffff';
           cell.bold = true;
           cell.align = 'center';
         } else {
-          // Zebra Striping
           cell.backgroundColor = (r - minRow) % 2 === 0 ? '#f0fdf4' : ''; 
           cell.textColor = '';
           cell.bold = false;
@@ -341,11 +332,17 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     updateCell, updateCells, formatAsTable, handleKeyDown, onFinishEdit, moveSelection, isDirty,
     handleMouseDown: (c: string, shift: boolean) => { 
       if (shift) setSelectionFocus(c); 
-      else { setSelectionAnchor(c); setSelectionFocus(c); setEditingCell(null); } 
+      else { 
+        setSelectionAnchor(c); 
+        setSelectionFocus(c); 
+        setEditingCell(null); 
+        setEditingValue(null);
+      } 
       setIsDragging(true); 
     },
     handleMouseEnter: (c: string) => { 
       setHoveredCell(c);
+      if (editingCell) return; 
       if (isDragging) setSelectionFocus(c); 
       if (isFilling) setFillFocus(c);
     },

@@ -29,15 +29,21 @@ export const Cell = memo(({
   const [localValue, setLocalValue] = useState('');
 
   useEffect(() => {
-    if (!isEditing) setLocalValue(data?.formula || data?.value || '');
-    else if (initialValue !== null) setLocalValue(initialValue);
+    if (!isEditing) {
+      setLocalValue(data?.formula || data?.value || '');
+    } else if (initialValue !== null) {
+      setLocalValue(initialValue);
+    }
   }, [data?.formula, data?.value, isEditing, initialValue]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
-      if (initialValue === null) inputRef.current.select();
-      else inputRef.current.setSelectionRange(inputRef.current.value.length, inputRef.current.value.length);
+      if (initialValue === null) {
+        inputRef.current.select();
+      } else {
+        inputRef.current.setSelectionRange(inputRef.current.value.length, inputRef.current.value.length);
+      }
     }
   }, [isEditing, initialValue]);
 
@@ -70,7 +76,6 @@ export const Cell = memo(({
       )}
       style={dynamicStyle as React.CSSProperties}
       onMouseDown={(e) => {
-        // Don't trigger cell selection if clicking the fill handle
         if ((e.target as HTMLElement).classList.contains('fill-handle')) return;
         onMouseDown(coord, e.shiftKey);
       }}
@@ -91,6 +96,7 @@ export const Cell = memo(({
               e.stopPropagation();
               handleCommit(e.key);
             } else if (e.key === 'Escape') {
+              e.preventDefault();
               e.stopPropagation();
               onFinishEdit();
             }
@@ -103,7 +109,7 @@ export const Cell = memo(({
       )}
       {data?.isLocked && <div className="absolute bottom-0 right-0 p-0.5 opacity-20"><Lock className="h-2 w-2" /></div>}
       
-      {isFillCorner && (
+      {isFillCorner && !isEditing && (
         <div 
           className="fill-handle absolute bottom-0 right-0 w-2 h-2 bg-primary cursor-crosshair z-30 border border-white hover:scale-125 transition-transform"
           onMouseDown={(e) => {
