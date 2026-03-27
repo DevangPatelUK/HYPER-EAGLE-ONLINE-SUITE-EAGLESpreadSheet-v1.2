@@ -25,6 +25,7 @@ export type CellData = {
   align?: 'left' | 'center' | 'right';
   backgroundColor?: string;
   textColor?: string;
+  fontSize?: number;
   format?: 'number' | 'currency' | 'percent' | 'text';
   type?: 'text' | 'number' | 'date' | 'checkbox' | 'select';
   options?: string[];

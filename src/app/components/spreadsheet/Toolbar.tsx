@@ -40,7 +40,9 @@ import {
   Combine,
   Split,
   Filter as FilterIcon,
-  TableProperties
+  TableProperties,
+  Plus as PlusIcon,
+  Minus as MinusIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -72,6 +74,7 @@ interface ToolbarProps {
   onType: (type: 'text' | 'number' | 'date' | 'checkbox' | 'select', options?: string[]) => void;
   onBgColor: (color: string) => void;
   onTextColor: (color: string) => void;
+  onFontSizeChange: (delta: number) => void;
   onNew: () => void;
   onSave: () => void;
   onDelete: () => void;
@@ -142,6 +145,7 @@ export const Toolbar = memo(({
   onFormat,
   onBgColor,
   onTextColor,
+  onFontSizeChange,
   onNew,
   onSave,
   onDelete,
@@ -374,6 +378,33 @@ export const Toolbar = memo(({
                 </DropdownMenu>
               </TooltipTrigger>
               <TooltipContent>Text Color</TooltipContent>
+            </Tooltip>
+          </div>
+
+          <Separator orientation="vertical" className="h-6 mx-1 shrink-0" />
+
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onFontSizeChange(1)}>
+                  <div className="flex items-center">
+                    <TypeIcon className="h-3 w-3" />
+                    <PlusIcon className="h-2 w-2" />
+                  </div>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Increase Font Size</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onFontSizeChange(-1)}>
+                  <div className="flex items-center">
+                    <TypeIcon className="h-3 w-3" />
+                    <MinusIcon className="h-2 w-2" />
+                  </div>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Decrease Font Size</TooltipContent>
             </Tooltip>
           </div>
 

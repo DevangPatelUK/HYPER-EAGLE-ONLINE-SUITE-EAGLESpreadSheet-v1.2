@@ -108,6 +108,13 @@ export default function HyperEagleSpreadsheet() {
     containerRef.current?.focus();
   }, [onFinishEdit]);
 
+  const handleFontSizeChange = useCallback((delta: number) => {
+    if (!selectionRange.length) return;
+    const currentSize = data[selectionRange[0]]?.fontSize || 12;
+    const nextSize = Math.max(6, Math.min(72, currentSize + delta));
+    updateCells(selectionRange, { fontSize: nextSize });
+  }, [selectionRange, data, updateCells]);
+
   const selectedRangeData = useMemo(() => {
     if (!selectionRange.length) return [];
     const sortedCoords = [...selectionRange].sort((a, b) => {
@@ -178,6 +185,7 @@ export default function HyperEagleSpreadsheet() {
           onFormat={(f) => updateCells(selectionRange, { format: f })}
           onBgColor={(bg) => updateCells(selectionRange, { backgroundColor: bg })}
           onTextColor={(tc) => updateCells(selectionRange, { textColor: tc })}
+          onFontSizeChange={handleFontSizeChange}
           onNew={addSheet} 
           onSave={handleSave} 
           onDelete={() => removeSheet(activeSheetId)}

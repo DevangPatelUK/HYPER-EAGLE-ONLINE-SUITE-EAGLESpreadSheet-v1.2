@@ -52,7 +52,8 @@ export const Cell = memo(({
     fontWeight: data?.bold ? 'bold' : 'normal',
     fontStyle: data?.italic ? 'italic' : 'normal',
     textDecoration: data?.underline ? 'underline' : 'none',
-    textAlign: data?.align || 'left'
+    textAlign: data?.align || 'left',
+    fontSize: data?.fontSize ? `${data.fontSize}px` : undefined
   };
 
   return (
@@ -74,13 +75,14 @@ export const Cell = memo(({
         <input
           ref={inputRef}
           className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary"
+          style={{ fontSize: data?.fontSize ? `${data.fontSize}px` : undefined }}
           value={localValue}
           onChange={(e) => setLocalValue(e.target.value)}
           onBlur={() => handleCommit()}
           onKeyDown={(e) => {
             if (['Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
               e.preventDefault();
-              e.stopPropagation(); // Prevent the event from bubbling to the container and causing a double-move
+              e.stopPropagation();
               handleCommit(e.key);
             } else if (e.key === 'Escape') {
               e.stopPropagation();
