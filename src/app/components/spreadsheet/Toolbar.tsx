@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { 
   Bold, 
   Italic,
@@ -19,7 +19,6 @@ import {
   Percent,
   ChevronDown,
   Rows,
-  Columns,
   Eraser,
   Printer,
   HelpCircle,
@@ -48,8 +47,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
@@ -116,7 +115,7 @@ const BG_COLORS = [
   { name: 'Purple', value: '#f3e8ff' },
 ];
 
-export const Toolbar: React.FC<ToolbarProps> = ({
+export const Toolbar = memo(({
   onBold,
   onItalic,
   onUnderline,
@@ -150,7 +149,19 @@ export const Toolbar: React.FC<ToolbarProps> = ({
   canRedo,
   sheetName,
   onNameChange,
-}) => {
+}: ToolbarProps) => {
+  const [localName, setLocalName] = useState(sheetName);
+
+  useEffect(() => {
+    setLocalName(sheetName);
+  }, [sheetName]);
+
+  const handleNameCommit = () => {
+    if (localName !== sheetName) {
+      onNameChange(localName);
+    }
+  };
+
   return (
     <div className="flex flex-col bg-white border-b border-border shadow-sm print:hidden">
       <div className="flex items-center gap-4 px-4 py-1 border-b bg-muted/30 text-[10px] font-bold text-muted-foreground uppercase tracking-widest select-none">
@@ -254,8 +265,10 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         <div className="flex items-center gap-1 pr-4 border-r border-border shrink-0">
           <LayoutGrid className="h-4 w-4 text-primary/60 mr-1" />
           <input
-            value={sheetName}
-            onChange={(e) => onNameChange(e.target.value)}
+            value={localName}
+            onChange={(e) => setLocalName(e.target.value)}
+            onBlur={handleNameCommit}
+            onKeyDown={(e) => e.key === 'Enter' && handleNameCommit()}
             className="bg-transparent border-none font-semibold text-primary focus:ring-0 text-base w-48 outline-none truncate"
             placeholder="EAGLESpreadSheet"
           />
@@ -327,4 +340,6 @@ export const Toolbar: React.FC<ToolbarProps> = ({
       </div>
     </div>
   );
-};
+});
+
+Toolbar.displayName = 'Toolbar';

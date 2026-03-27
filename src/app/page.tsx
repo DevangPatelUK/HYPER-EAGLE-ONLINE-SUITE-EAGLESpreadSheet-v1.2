@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Toolbar } from './components/spreadsheet/Toolbar';
 import { FormulaBar } from './components/spreadsheet/FormulaBar';
 import { Grid } from './components/spreadsheet/Grid';
@@ -9,10 +9,10 @@ import { HelpDialog } from './components/spreadsheet/HelpDialog';
 import { ChartOverlay } from './components/spreadsheet/ChartOverlay';
 import { PrintSettingsDialog } from './components/spreadsheet/PrintSettings';
 import { useSheetStore } from './lib/sheet-store';
-import { evaluateFormula, coordinateToIndex, PrintSettings } from './lib/formula-engine';
+import { evaluateFormula, PrintSettings } from './lib/formula-engine';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
-import { Plus, X, ChevronRight, UserCircle, Wifi, WifiOff, Save, Loader2 } from 'lucide-react';
+import { Plus, X, ChevronRight, UserCircle, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore } from '@/firebase';
@@ -72,10 +72,13 @@ export default function HyperEagleSpreadsheet() {
     setIsSyncing(true);
     const ref = doc(db, 'workbooks', user.uid);
     setDoc(ref, { userId: user.uid, name: activeSheet.name, workbookData: workbook, updatedAt: serverTimestamp() }, { merge: true })
-      .then(() => { setLastSaved(new Date()); isDirty.current = false; })
+      .then(() => { 
+        setLastSaved(new Date()); 
+        isDirty.current = false; 
+      })
       .catch((e) => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'write', requestResourceData: workbook })))
       .finally(() => setIsSyncing(false));
-  }, [user, db, workbook, activeSheet, isDirty]);
+  }, [user, db, workbook, activeSheet.name, isDirty]);
 
   useEffect(() => {
     if (!isDirty.current) return;
@@ -84,16 +87,16 @@ export default function HyperEagleSpreadsheet() {
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
   }, [workbook, handleSave, isDirty]);
 
-  const handleUpdate = (coord: string, val: string) => {
+  const handleUpdate = useCallback((coord: string, val: string) => {
     if (activeSheet.isProtected || data[coord]?.isLocked) {
       toast({ title: 'Protected', description: 'Cell is locked.', variant: 'destructive' });
       return;
     }
     if (val.startsWith('=')) updateCell(coord, { formula: val, value: evaluateFormula(coord, val, workbook, activeSheetId) });
     else updateCell(coord, { value: val, formula: '' });
-  };
+  }, [activeSheet.isProtected, activeSheetId, data, updateCell, workbook]);
 
-  const handleCommitEdit = (nextKey?: string) => {
+  const handleCommitEdit = useCallback((nextKey?: string) => {
     if (nextKey && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(nextKey)) {
       onFinishEdit();
       setTimeout(() => moveSelection(nextKey), 0);
@@ -101,7 +104,9 @@ export default function HyperEagleSpreadsheet() {
       onFinishEdit(nextKey);
     }
     containerRef.current?.focus();
-  };
+  }, [onFinishEdit, moveSelection]);
+
+  const selectedRangeData = useMemo(() => [], []);
 
   return (
     <div 
@@ -135,6 +140,10 @@ export default function HyperEagleSpreadsheet() {
           onAddChart={addChart} onClear={() => selectionRange.forEach(c => updateCell(c, { value: '', formula: '' }))}
           onInsertRow={() => {}} onLock={(l) => selectionRange.forEach(c => updateCell(c, { isLocked: l }))}
           isSheetProtected={!!activeSheet.isProtected} onToggleProtectSheet={() => {}}
+          onInsertCol={() => {}} onDeleteCol={() => {}} onDeleteRow={() => {}} onHideRows={() => {}} onHideCols={() => {}} onUnhideAll={() => {}}
+          onFreezeRows={n => {}} onFreezeCols={n => {}} onSort={dir => {}} onFilter={(op, v) => {}} onClearFilters={() => {}} onMerge={() => {}} onUnmerge={() => {}}
+          onImportCSV={() => {}} onExportCSV={() => {}} onExportJSON={() => {}} onAddComment={() => {}} onValidation={() => {}} onConditionalFormat={() => {}}
+          onType={() => {}} onTextColor={() => {}}
         />
         <FormulaBar selectedCoord={selectedCell} formula={selectedCell ? (data[selectedCell]?.formula || data[selectedCell]?.value || '') : ''} onChange={(v) => selectedCell && handleUpdate(selectedCell, v)} />
       </header>
@@ -172,7 +181,7 @@ export default function HyperEagleSpreadsheet() {
         <span>{selectionRange.length > 1 ? `${selectionRange.length} CELLS SELECTED` : 'HYPER EAGLE READY'}</span>
       </footer>
 
-      <AIAssistant open={aiOpen} onOpenChange={setAiOpen} selectedRange={selectedCell} selectedRangeData={[]} onApplyFormula={(f) => selectedCell && handleUpdate(selectedCell, f)} />
+      <AIAssistant open={aiOpen} onOpenChange={setAiOpen} selectedRange={selectedCell} selectedRangeData={selectedRangeData} onApplyFormula={(f) => selectedCell && handleUpdate(selectedCell, f)} />
       <HelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
       <PrintSettingsDialog open={printOpen} onOpenChange={setPrintOpen} settings={activeSheet.printSettings || DEFAULT_PRINT} onUpdateSettings={(s) => { const n = { ...workbook }; n[activeSheetId].printSettings = s; setWorkbook(n); }} onPrint={() => { setPrintOpen(false); setTimeout(() => window.print(), 500); }} />
       <Toaster />

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, memo } from 'react';
 import { Cell } from './Cell';
 import { indexToCoordinate, Sheet } from '@/app/lib/formula-engine';
 import { cn } from '@/lib/utils';
@@ -25,11 +25,11 @@ interface GridProps {
   onSelectCol: (col: number, shift: boolean) => void;
 }
 
-export const Grid: React.FC<GridProps> = ({
+export const Grid = memo(({
   rows, cols, activeSheet, selectedCell, selectionRange, editingCell, editingValue,
   onMouseDown, onMouseEnter, onMouseUp, onDoubleClick, onUpdate, 
   onUpdateRowHeight, onUpdateColWidth, onFinishEdit, onSelectRow, onSelectCol,
-}) => {
+}: GridProps) => {
   const { rowHeights = {}, colWidths = {}, frozenRows = 0, frozenCols = 0 } = activeSheet;
   const [resizing, setResizing] = useState<{ type: 'col' | 'row', index: number, startPos: number, startSize: number } | null>(null);
 
@@ -64,7 +64,7 @@ export const Grid: React.FC<GridProps> = ({
   }, [resizing, onUpdateColWidth, onUpdateRowHeight]);
 
   return (
-    <div className="flex-1 overflow-auto bg-white select-none relative h-full w-full">
+    <div className="flex-1 overflow-auto bg-white select-none relative h-full w-full scrollbar-hide">
       <div className="grid sticky top-0 z-40" style={{ gridTemplateColumns: gridTemplate }}>
         <div className="bg-muted h-8 border-r border-b sticky left-0 z-50 flex items-center justify-center" />
         {Array.from({ length: cols }).map((_, i) => (
@@ -101,4 +101,6 @@ export const Grid: React.FC<GridProps> = ({
       </div>
     </div>
   );
-};
+});
+
+Grid.displayName = 'Grid';
