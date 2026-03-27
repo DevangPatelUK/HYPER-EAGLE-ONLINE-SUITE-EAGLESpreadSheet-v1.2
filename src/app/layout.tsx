@@ -1,5 +1,6 @@
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase';
+import { Analytics } from '@vercel/analytics/next';
 
 export default function RootLayout({
   children,
@@ -17,6 +18,7 @@ export default function RootLayout({
         <FirebaseClientProvider>
           {children}
         </FirebaseClientProvider>
+        <Analytics />
       </body>
     </html>
   );
