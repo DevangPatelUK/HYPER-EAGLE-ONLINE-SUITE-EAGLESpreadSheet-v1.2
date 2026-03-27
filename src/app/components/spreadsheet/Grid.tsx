@@ -30,24 +30,34 @@ export const Grid = memo(({
   onMouseDown, onMouseEnter, onMouseUp, onDoubleClick, onUpdate, 
   onUpdateRowHeight, onUpdateColWidth, onFinishEdit, onSelectRow, onSelectCol,
 }: GridProps) => {
-  const { rowHeights = {}, colWidths = {}, frozenRows = 0, frozenCols = 0 } = activeSheet;
+  const { rowHeights = {}, colWidths = {}, frozenRows = 0, frozenCols = 0, hiddenRows = {}, hiddenCols = {} } = activeSheet;
   const [resizing, setResizing] = useState<{ type: 'col' | 'row', index: number, startPos: number, startSize: number } | null>(null);
 
   const colOffsets = useMemo(() => {
     const offsets = [40];
-    for (let i = 0; i < cols; i++) offsets.push(offsets[i] + (colWidths[i] || 120));
+    let current = 40;
+    for (let i = 0; i < cols; i++) {
+      const w = hiddenCols[i] ? 0 : (colWidths[i] || 120);
+      current += w;
+      offsets.push(current);
+    }
     return offsets;
-  }, [cols, colWidths]);
+  }, [cols, colWidths, hiddenCols]);
 
   const rowOffsets = useMemo(() => {
     const offsets = [32];
-    for (let i = 0; i < rows; i++) offsets.push(offsets[i] + (rowHeights[i] || 32));
+    let current = 32;
+    for (let i = 0; i < rows; i++) {
+      const h = hiddenRows[i] ? 0 : (rowHeights[i] || 32);
+      current += h;
+      offsets.push(current);
+    }
     return offsets;
-  }, [rows, rowHeights]);
+  }, [rows, rowHeights, hiddenRows]);
 
   const gridTemplate = useMemo(() => 
-    `40px ${Array.from({ length: cols }).map((_, i) => `${colWidths[i] || 120}px`).join(' ')}`,
-    [cols, colWidths]
+    `40px ${Array.from({ length: cols }).map((_, i) => hiddenCols[i] ? '0px' : `${colWidths[i] || 120}px`).join(' ')}`,
+    [cols, colWidths, hiddenCols]
   );
 
   useEffect(() => {
@@ -68,7 +78,7 @@ export const Grid = memo(({
       <div className="grid sticky top-0 z-40" style={{ gridTemplateColumns: gridTemplate }}>
         <div className="bg-muted h-8 border-r border-b sticky left-0 z-50 flex items-center justify-center" />
         {Array.from({ length: cols }).map((_, i) => (
-          <div key={i} className={cn("relative bg-muted h-8 border-r border-b flex items-center justify-center text-[10px] font-bold text-muted-foreground", i < frozenCols && "sticky z-50")} style={{ left: i < frozenCols ? `${colOffsets[i]}px` : undefined }}>
+          <div key={i} className={cn("relative bg-muted h-8 border-r border-b flex items-center justify-center text-[10px] font-bold text-muted-foreground", i < frozenCols && "sticky z-50", hiddenCols[i] && "hidden")} style={{ left: i < frozenCols ? `${colOffsets[i]}px` : undefined }}>
             {String.fromCharCode(65 + (i % 26))}
             <div className="absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-primary/50 z-50" onMouseDown={(e) => { e.preventDefault(); setResizing({ type: 'col', index: i, startPos: e.clientX, startSize: colWidths[i] || 120 }); }} />
           </div>
@@ -78,12 +88,15 @@ export const Grid = memo(({
       <div className="grid" style={{ gridTemplateColumns: gridTemplate }}>
         {Array.from({ length: rows }).map((_, r) => (
           <React.Fragment key={r}>
-            <div className={cn("relative bg-muted border-r border-b flex items-center justify-center text-[10px] font-bold text-muted-foreground sticky left-0", r < frozenRows ? "z-40 sticky top-0" : "z-20")} style={{ height: rowHeights[r] || 32, top: r < frozenRows ? `${rowOffsets[r]}px` : undefined }}>
-              {r + 1}
-              <div className="absolute bottom-0 left-0 w-full h-1 cursor-row-resize hover:bg-primary/50 z-50" onMouseDown={(e) => { e.preventDefault(); setResizing({ type: 'row', index: r, startPos: e.clientY, startSize: rowHeights[r] || 32 }); }} />
-            </div>
+            {!hiddenRows[r] && (
+              <div className={cn("relative bg-muted border-r border-b flex items-center justify-center text-[10px] font-bold text-muted-foreground sticky left-0", r < frozenRows ? "z-40 sticky top-0" : "z-20")} style={{ height: rowHeights[r] || 32, top: r < frozenRows ? `${rowOffsets[r]}px` : undefined }}>
+                {r + 1}
+                <div className="absolute bottom-0 left-0 w-full h-1 cursor-row-resize hover:bg-primary/50 z-50" onMouseDown={(e) => { e.preventDefault(); setResizing({ type: 'row', index: r, startPos: e.clientY, startSize: rowHeights[r] || 32 }); }} />
+              </div>
+            )}
             {Array.from({ length: cols }).map((_, c) => {
               const coord = indexToCoordinate(r, c);
+              if (hiddenRows[r] || hiddenCols[c]) return null;
               return (
                 <div key={coord} className={cn(r < frozenRows && "sticky z-30", c < frozenCols && "sticky z-30")} style={{ gridRowStart: r + 1, gridColumnStart: c + 2, height: rowHeights[r] || 32, top: r < frozenRows ? `${rowOffsets[r]}px` : undefined, left: c < frozenCols ? `${colOffsets[c]}px` : undefined }}>
                   <Cell

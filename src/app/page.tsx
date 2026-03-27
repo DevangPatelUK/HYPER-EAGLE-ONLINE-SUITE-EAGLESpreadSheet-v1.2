@@ -8,11 +8,10 @@ import { AIAssistant } from './components/spreadsheet/AIAssistant';
 import { HelpDialog } from './components/spreadsheet/HelpDialog';
 import { ChartOverlay } from './components/spreadsheet/ChartOverlay';
 import { useSheetStore } from './lib/sheet-store';
-import { evaluateFormula, PrintSettings, coordinateToIndex } from './lib/formula-engine';
+import { evaluateFormula, coordinateToIndex } from './lib/formula-engine';
 import { toast } from '@/hooks/use-toast';
 import { Toaster } from '@/components/ui/toaster';
 import { Plus, X, ChevronRight, UserCircle, Wifi, WifiOff, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useUser, useFirestore } from '@/firebase';
 import { doc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore';
@@ -33,7 +32,7 @@ export default function HyperEagleSpreadsheet() {
     selectedCell, selectionRange, editingCell, setEditingCell, editingValue, setEditingValue,
     updateCell, updateRowHeight, updateColWidth, handleMouseDown, handleMouseEnter, handleMouseUp,
     handleKeyDown, onFinishEdit, addSheet, renameSheet, removeSheet, undo, redo, canUndo, canRedo,
-    isDirty, addChart, removeChart, moveSelection, insertRow, deleteRow
+    isDirty, addChart, removeChart, insertRow, deleteRow, freezeRows, freezeCols, hideRows, hideCols, unhideAll, sortRange
   } = useSheetStore(rows, cols);
 
   const [aiOpen, setAiOpen] = useState(false);
@@ -42,7 +41,6 @@ export default function HyperEagleSpreadsheet() {
   const [isOnline, setIsOnline] = useState(true);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // Connection monitoring
   useEffect(() => {
     setIsOnline(navigator.onLine);
     const h = () => setIsOnline(true), l = () => setIsOnline(false);
@@ -50,12 +48,10 @@ export default function HyperEagleSpreadsheet() {
     return () => { window.removeEventListener('online', h); window.removeEventListener('offline', l); };
   }, []);
 
-  // Remote updates listener
   useEffect(() => {
     if (!user || !db) return;
     const ref = doc(db, 'workbooks', user.uid);
     return onSnapshot(ref, (snap) => {
-      // Only apply remote updates if we aren't currently editing or syncing
       if (snap.exists() && !isDirty.current && !isSyncing) {
         const d = snap.data();
         isRemoteUpdate.current = true;
@@ -66,13 +62,10 @@ export default function HyperEagleSpreadsheet() {
     }, (err) => errorEmitter.emit('permission-error', new FirestorePermissionError({ path: ref.path, operation: 'get' })));
   }, [user, db, setWorkbook, isDirty, isSyncing]);
 
-  // Cloud sync save
   const handleSave = useCallback(() => {
     if (!user || !db || !isDirty.current || isRemoteUpdate.current || isSyncing) return;
-    
     setIsSyncing(true);
     const ref = doc(db, 'workbooks', user.uid);
-    
     setDoc(ref, { 
       userId: user.uid, 
       name: activeSheet.name, 
@@ -87,7 +80,6 @@ export default function HyperEagleSpreadsheet() {
       .finally(() => setIsSyncing(false));
   }, [user, db, workbook, activeSheet.name, isDirty, isSyncing]);
 
-  // Debounced autosave
   useEffect(() => {
     if (!isDirty.current || isSyncing) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
@@ -117,20 +109,17 @@ export default function HyperEagleSpreadsheet() {
 
   const selectedRangeData = useMemo(() => {
     if (!selectionRange.length) return [];
-    
     const sortedCoords = [...selectionRange].sort((a, b) => {
       const ia = coordinateToIndex(a)!;
       const ib = coordinateToIndex(b)!;
       return ia.row === ib.row ? ia.col - ib.col : ia.row - ib.row;
     });
-
     const rowsMap = new Map<number, string[]>();
     sortedCoords.forEach(c => {
       const idx = coordinateToIndex(c)!;
       if (!rowsMap.has(idx.row)) rowsMap.set(idx.row, []);
       rowsMap.get(idx.row)!.push(data[c]?.value || '');
     });
-
     return Array.from(rowsMap.values());
   }, [selectionRange, data]);
 
@@ -205,12 +194,12 @@ export default function HyperEagleSpreadsheet() {
           onToggleProtectSheet={() => {}}
           onInsertCol={() => {}} 
           onDeleteCol={() => {}} 
-          onHideRows={() => {}} 
-          onHideCols={() => {}} 
-          onUnhideAll={() => {}}
-          onFreezeRows={n => {}} 
-          onFreezeCols={n => {}} 
-          onSort={dir => {}} 
+          onHideRows={hideRows} 
+          onHideCols={hideCols} 
+          onUnhideAll={unhideAll}
+          onFreezeRows={freezeRows} 
+          onFreezeCols={freezeCols} 
+          onSort={sortRange} 
           onFilter={(op, v) => {}} 
           onClearFilters={() => {}} 
           onMerge={() => {}} 
@@ -219,7 +208,6 @@ export default function HyperEagleSpreadsheet() {
           onExportCSV={() => {}} 
           onExportJSON={() => {}} 
           onAddComment={() => {}} 
-          onAddChart={() => {}}
           onValidation={() => {}} 
           onConditionalFormat={() => {}}
           onType={() => {}} 
@@ -284,9 +272,9 @@ export default function HyperEagleSpreadsheet() {
             )}
           </div>
         ))}
-        <Button variant="ghost" size="icon" className="h-8 w-8 ml-1" onClick={addSheet}>
+        <button onClick={addSheet} className="h-8 w-8 flex items-center justify-center hover:bg-secondary rounded ml-1">
           <Plus className="h-4 w-4" />
-        </Button>
+        </button>
       </nav>
 
       <footer className="h-6 bg-primary text-[9px] text-white flex items-center px-4 justify-between font-bold tracking-widest print:hidden">

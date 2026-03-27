@@ -24,7 +24,7 @@ interface ClipboardData {
 
 export function useSheetStore(rowsCount: number, colsCount: number) {
   const [workbook, setWorkbook] = useState<WorkbookData>({
-    'sheet-1': { id: 'sheet-1', name: 'EAGLESpreadSheet', data: {}, rowHeights: {}, colWidths: {}, charts: [] }
+    'sheet-1': { id: 'sheet-1', name: 'EAGLESpreadSheet', data: {}, rowHeights: {}, colWidths: {}, charts: [], hiddenRows: {}, hiddenCols: {}, frozenRows: 0, frozenCols: 0 }
   });
   const [activeSheetId, setActiveSheetId] = useState('sheet-1');
   const [past, setPast] = useState<WorkbookData[]>([]);
@@ -120,7 +120,6 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     if (editingCell) return;
     const cmd = e.metaKey || e.ctrlKey;
 
-    // Clipboard
     if (cmd && e.key === 'c') {
       const cells: Record<string, CellData> = {};
       selectionRange.forEach(c => { if (data[c]) cells[c] = { ...data[c] }; });
@@ -144,9 +143,7 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
         commitChange(recalculateAll(newWb));
       }
       e.preventDefault();
-    } 
-    // Clear
-    else if (e.key === 'Backspace' || e.key === 'Delete') {
+    } else if (e.key === 'Backspace' || e.key === 'Delete') {
       const newWb = JSON.parse(JSON.stringify(workbook));
       selectionRange.forEach(c => { 
         if (newWb[activeSheetId].data[c]) {
@@ -155,23 +152,17 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       });
       commitChange(recalculateAll(newWb));
       e.preventDefault();
-    } 
-    // Undo/Redo
-    else if (cmd && e.key === 'z') { 
+    } else if (cmd && e.key === 'z') { 
       if (e.shiftKey) { 
         if (future.length) { setPast([...past, workbook]); setWorkbook(future[0]); setFuture(future.slice(1)); } 
       } else { 
         if (past.length) { setFuture([workbook, ...future]); setWorkbook(past[past.length - 1]); setPast(past.slice(0, -1)); } 
       } 
       e.preventDefault(); 
-    }
-    // Navigation
-    else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) { 
+    } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) { 
       moveSelection(e.key, cmd, e.shiftKey); 
       e.preventDefault(); 
-    }
-    // Start Editing
-    else if (e.key.length === 1 && !cmd && !e.altKey) { 
+    } else if (e.key.length === 1 && !cmd && !e.altKey) { 
       setEditingCell(selectionAnchor); 
       setEditingValue(e.key); 
       e.preventDefault(); 
@@ -191,7 +182,7 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
     handleMouseUp: () => setIsDragging(false),
     addSheet: () => { 
       const id = `sheet-${Date.now()}`; 
-      commitChange({ ...workbook, [id]: { id, name: `EagleSheet${Object.keys(workbook).length + 1}`, data: {}, rowHeights: {}, colWidths: {}, charts: [] } }); 
+      commitChange({ ...workbook, [id]: { id, name: `EagleSheet${Object.keys(workbook).length + 1}`, data: {}, rowHeights: {}, colWidths: {}, charts: [], hiddenRows: {}, hiddenCols: {}, frozenRows: 0, frozenCols: 0 } }); 
       setActiveSheetId(id); 
     },
     renameSheet: (id: string, name: string) => { 
@@ -227,11 +218,8 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       const newData: SpreadsheetData = {};
       Object.entries(sheet.data).forEach(([coord, cell]) => {
         const idx = coordinateToIndex(coord)!;
-        if (idx.row >= row) {
-          newData[indexToCoordinate(idx.row + 1, idx.col)] = cell;
-        } else {
-          newData[coord] = cell;
-        }
+        if (idx.row >= row) newData[indexToCoordinate(idx.row + 1, idx.col)] = cell;
+        else newData[coord] = cell;
       });
       sheet.data = newData;
       commitChange(recalculateAll(newWb));
@@ -245,14 +233,64 @@ export function useSheetStore(rowsCount: number, colsCount: number) {
       Object.entries(sheet.data).forEach(([coord, cell]) => {
         const idx = coordinateToIndex(coord)!;
         if (idx.row === row) return;
-        if (idx.row > row) {
-          newData[indexToCoordinate(idx.row - 1, idx.col)] = cell;
-        } else {
-          newData[coord] = cell;
-        }
+        if (idx.row > row) newData[indexToCoordinate(idx.row - 1, idx.col)] = cell;
+        else newData[coord] = cell;
       });
       sheet.data = newData;
       commitChange(recalculateAll(newWb));
+    },
+    freezeRows: (n: number) => {
+      const next = JSON.parse(JSON.stringify(workbook));
+      next[activeSheetId].frozenRows = n;
+      commitChange(next);
+    },
+    freezeCols: (n: number) => {
+      const next = JSON.parse(JSON.stringify(workbook));
+      next[activeSheetId].frozenCols = n;
+      commitChange(next);
+    },
+    hideRows: () => {
+      const next = JSON.parse(JSON.stringify(workbook));
+      const sheet = next[activeSheetId];
+      selectionRange.forEach(c => {
+        const idx = coordinateToIndex(c);
+        if (idx) sheet.hiddenRows = { ...sheet.hiddenRows, [idx.row]: true };
+      });
+      commitChange(next);
+    },
+    hideCols: () => {
+      const next = JSON.parse(JSON.stringify(workbook));
+      const sheet = next[activeSheetId];
+      selectionRange.forEach(c => {
+        const idx = coordinateToIndex(c);
+        if (idx) sheet.hiddenCols = { ...sheet.hiddenCols, [idx.col]: true };
+      });
+      commitChange(next);
+    },
+    unhideAll: () => {
+      const next = JSON.parse(JSON.stringify(workbook));
+      next[activeSheetId].hiddenRows = {};
+      next[activeSheetId].hiddenCols = {};
+      commitChange(next);
+    },
+    sortRange: (dir: 'asc' | 'desc') => {
+      if (!selectionAnchor || !selectionFocus) return;
+      const next = JSON.parse(JSON.stringify(workbook));
+      const sheet = next[activeSheetId];
+      
+      const coords = [...selectionRange].sort((a, b) => {
+        const ia = coordinateToIndex(a)!, ib = coordinateToIndex(b)!;
+        return ia.row === ib.row ? ia.col - ib.col : ia.row - ib.row;
+      });
+
+      const values = coords.map(c => sheet.data[c] || { value: '', formula: '' });
+      values.sort((a, b) => {
+        const va = a.value || '', vb = b.value || '';
+        return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      });
+
+      coords.forEach((c, i) => sheet.data[c] = values[i]);
+      commitChange(recalculateAll(next));
     },
     addChart: (type: ChartType) => { 
       const range = `${selectionAnchor}:${selectionFocus}`; 
