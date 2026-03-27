@@ -13,7 +13,7 @@ interface GridProps {
   selectionRange: string[];
   editingCell: string | null;
   editingValue: string | null;
-  onMouseDown: (coord: string, shiftKey: boolean) => void;
+  onMouseDown: (coord: string, shift: boolean) => void;
   onMouseEnter: (coord: string) => void;
   onMouseUp: () => void;
   onDoubleClick: (coord: string) => void;
@@ -26,153 +26,78 @@ interface GridProps {
 }
 
 export const Grid: React.FC<GridProps> = ({
-  rows,
-  cols,
-  activeSheet,
-  selectedCell,
-  selectionRange,
-  editingCell,
-  editingValue,
-  onMouseDown,
-  onMouseEnter,
-  onDoubleClick,
-  onUpdate,
-  onUpdateRowHeight,
-  onUpdateColWidth,
-  onFinishEdit,
-  onSelectRow,
-  onSelectCol,
+  rows, cols, activeSheet, selectedCell, selectionRange, editingCell, editingValue,
+  onMouseDown, onMouseEnter, onMouseUp, onDoubleClick, onUpdate, 
+  onUpdateRowHeight, onUpdateColWidth, onFinishEdit, onSelectRow, onSelectCol,
 }) => {
-  const { hiddenRows = {}, filteredRows = {}, hiddenCols = {}, rowHeights = {}, colWidths = {}, frozenRows = 0, frozenCols = 0 } = activeSheet;
-
+  const { rowHeights = {}, colWidths = {}, frozenRows = 0, frozenCols = 0 } = activeSheet;
   const [resizing, setResizing] = useState<{ type: 'col' | 'row', index: number, startPos: number, startSize: number } | null>(null);
 
   const colOffsets = useMemo(() => {
     const offsets = [40];
-    for (let i = 0; i < cols; i++) {
-      offsets.push(offsets[i] + (hiddenCols[i] ? 0 : (colWidths[i] || 120)));
-    }
+    for (let i = 0; i < cols; i++) offsets.push(offsets[i] + (colWidths[i] || 120));
     return offsets;
-  }, [cols, hiddenCols, colWidths]);
+  }, [cols, colWidths]);
 
   const rowOffsets = useMemo(() => {
     const offsets = [32];
-    for (let i = 0; i < rows; i++) {
-      offsets.push(offsets[i] + (hiddenRows[i] || filteredRows[i] ? 0 : (rowHeights[i] || 32)));
-    }
+    for (let i = 0; i < rows; i++) offsets.push(offsets[i] + (rowHeights[i] || 32));
     return offsets;
-  }, [rows, hiddenRows, filteredRows, rowHeights]);
+  }, [rows, rowHeights]);
 
-  const colTemplate = useMemo(() => 
-    `40px ${Array.from({ length: cols }).map((_, i) => hiddenCols[i] ? '0px' : `${colWidths[i] || 120}px`).join(' ')}`,
-    [cols, hiddenCols, colWidths]
+  const gridTemplate = useMemo(() => 
+    `40px ${Array.from({ length: cols }).map((_, i) => `${colWidths[i] || 120}px`).join(' ')}`,
+    [cols, colWidths]
   );
-
-  const handleResizeStart = (e: React.MouseEvent, type: 'col' | 'row', index: number, initialSize: number) => {
-    e.stopPropagation();
-    e.preventDefault();
-    setResizing({
-      type,
-      index,
-      startPos: type === 'col' ? e.clientX : e.clientY,
-      startSize: initialSize
-    });
-  };
 
   useEffect(() => {
     if (!resizing) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
+    const hMove = (e: MouseEvent) => {
       const delta = (resizing.type === 'col' ? e.clientX : e.clientY) - resizing.startPos;
-      const newSize = Math.max(20, resizing.startSize + delta);
-      if (resizing.type === 'col') {
-        onUpdateColWidth(resizing.index, newSize);
-      } else {
-        onUpdateRowHeight(resizing.index, newSize);
-      }
+      const size = Math.max(20, resizing.startSize + delta);
+      if (resizing.type === 'col') onUpdateColWidth(resizing.index, size);
+      else onUpdateRowHeight(resizing.index, size);
     };
-
-    const handleMouseUp = () => {
-      setResizing(null);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
-    };
+    const hUp = () => setResizing(null);
+    window.addEventListener('mousemove', hMove); window.addEventListener('mouseup', hUp);
+    return () => { window.removeEventListener('mousemove', hMove); window.removeEventListener('mouseup', hUp); };
   }, [resizing, onUpdateColWidth, onUpdateRowHeight]);
 
   return (
-    <div className="flex-1 overflow-auto bg-white select-none relative" role="grid">
-      <div className="grid sticky top-0 left-0 z-40" style={{ gridTemplateColumns: colTemplate }}>
-        <div className="bg-muted h-8 border-r border-b border-border flex items-center justify-center sticky left-0 z-50" />
-        {Array.from({ length: cols }).map((_, i) => {
-          if (hiddenCols[i]) return null;
-          return (
-            <div
-              key={i}
-              onClick={(e) => onSelectCol(i, e.shiftKey)}
-              className={cn(
-                "relative bg-muted h-8 border-r border-b border-border flex items-center justify-center text-[10px] font-bold text-muted-foreground cursor-pointer hover:bg-primary/10 transition-colors",
-                i < frozenCols && "sticky left-[40px] z-50"
-              )}
-              style={{ left: i < frozenCols ? `${colOffsets[i]}px` : undefined }}
-            >
-              {String.fromCharCode(65 + (i % 26))}
-              {/* Column Resize Handle */}
-              <div
-                className="absolute right-0 top-0 w-1.5 h-full cursor-col-resize hover:bg-primary/50 z-50"
-                onMouseDown={(e) => handleResizeStart(e, 'col', i, colWidths[i] || 120)}
-              />
-            </div>
-          );
-        })}
+    <div className="flex-1 overflow-auto bg-white select-none relative h-full w-full">
+      <div className="grid sticky top-0 z-40" style={{ gridTemplateColumns: gridTemplate }}>
+        <div className="bg-muted h-8 border-r border-b sticky left-0 z-50 flex items-center justify-center" />
+        {Array.from({ length: cols }).map((_, i) => (
+          <div key={i} className={cn("relative bg-muted h-8 border-r border-b flex items-center justify-center text-[10px] font-bold text-muted-foreground", i < frozenCols && "sticky z-50")} style={{ left: i < frozenCols ? `${colOffsets[i]}px` : undefined }}>
+            {String.fromCharCode(65 + (i % 26))}
+            <div className="absolute right-0 top-0 w-1 h-full cursor-col-resize hover:bg-primary/50 z-50" onMouseDown={(e) => { e.preventDefault(); setResizing({ type: 'col', index: i, startPos: e.clientX, startSize: colWidths[i] || 120 }); }} />
+          </div>
+        ))}
       </div>
 
-      <div className="grid relative" style={{ gridTemplateColumns: colTemplate }}>
-        {Array.from({ length: rows }).map((_, r) => {
-          if (hiddenRows[r] || filteredRows[r]) return null;
-          const isRowFrozen = r < frozenRows;
-          return (
-            <React.Fragment key={r}>
-              <div 
-                onClick={(e) => onSelectRow(r, e.shiftKey)}
-                className={cn("relative bg-muted border-r border-b border-border flex items-center justify-center text-[10px] font-bold text-muted-foreground sticky left-0 cursor-pointer hover:bg-primary/10", isRowFrozen ? "z-30 sticky top-0" : "z-20")}
-                style={{ gridRowStart: r + 1, height: rowHeights[r] || 32, top: isRowFrozen ? `${rowOffsets[r]}px` : undefined }}
-              >
-                {r + 1}
-                {/* Row Resize Handle */}
-                <div
-                  className="absolute bottom-0 left-0 w-full h-1.5 cursor-row-resize hover:bg-primary/50 z-50"
-                  onMouseDown={(e) => handleResizeStart(e, 'row', r, rowHeights[r] || 32)}
-                />
-              </div>
-              {Array.from({ length: cols }).map((_, c) => {
-                if (hiddenCols[c]) return null;
-                const coord = indexToCoordinate(r, c);
-                const cellData = activeSheet.data[coord];
-                if (cellData?.hiddenByMerge) return null;
-                return (
-                  <div 
-                    key={coord} 
-                    className={cn(isRowFrozen && "sticky top-0 z-30", c < frozenCols && "sticky left-[40px] z-30")}
-                    style={{ gridRowStart: r + 1, gridColumnStart: c + 2, height: rowHeights[r] || 32, top: isRowFrozen ? `${rowOffsets[r]}px` : undefined, left: c < frozenCols ? `${colOffsets[c]}px` : undefined }}
-                  >
-                    <Cell
-                      coord={coord} data={cellData} isActive={selectedCell === coord}
-                      isInRange={selectionRange.includes(coord)} isEditing={editingCell === coord}
-                      initialValue={editingCell === coord ? editingValue : null}
-                      onMouseDown={onMouseDown} onMouseEnter={onMouseEnter}
-                      onDoubleClick={onDoubleClick} onUpdate={onUpdate} onFinishEdit={onFinishEdit}
-                    />
-                  </div>
-                );
-              })}
-            </React.Fragment>
-          );
-        })}
+      <div className="grid" style={{ gridTemplateColumns: gridTemplate }}>
+        {Array.from({ length: rows }).map((_, r) => (
+          <React.Fragment key={r}>
+            <div className={cn("relative bg-muted border-r border-b flex items-center justify-center text-[10px] font-bold text-muted-foreground sticky left-0", r < frozenRows ? "z-40 sticky top-0" : "z-20")} style={{ height: rowHeights[r] || 32, top: r < frozenRows ? `${rowOffsets[r]}px` : undefined }}>
+              {r + 1}
+              <div className="absolute bottom-0 left-0 w-full h-1 cursor-row-resize hover:bg-primary/50 z-50" onMouseDown={(e) => { e.preventDefault(); setResizing({ type: 'row', index: r, startPos: e.clientY, startSize: rowHeights[r] || 32 }); }} />
+            </div>
+            {Array.from({ length: cols }).map((_, c) => {
+              const coord = indexToCoordinate(r, c);
+              return (
+                <div key={coord} className={cn(r < frozenRows && "sticky z-30", c < frozenCols && "sticky z-30")} style={{ gridRowStart: r + 1, gridColumnStart: c + 2, height: rowHeights[r] || 32, top: r < frozenRows ? `${rowOffsets[r]}px` : undefined, left: c < frozenCols ? `${colOffsets[c]}px` : undefined }}>
+                  <Cell
+                    coord={coord} data={activeSheet.data[coord]} isActive={selectedCell === coord}
+                    isInRange={selectionRange.includes(coord)} isEditing={editingCell === coord}
+                    initialValue={editingCell === coord ? editingValue : null}
+                    onMouseDown={onMouseDown} onMouseEnter={onMouseEnter} onDoubleClick={onDoubleClick}
+                    onUpdate={onUpdate} onFinishEdit={onFinishEdit}
+                  />
+                </div>
+              );
+            })}
+          </React.Fragment>
+        ))}
       </div>
     </div>
   );

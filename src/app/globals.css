@@ -32,7 +32,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-body antialiased;
   }
 }
 
@@ -44,50 +44,29 @@
   scrollbar-width: none;
 }
 
-/* Professional Print Styles */
 @media print {
   @page {
     margin: 0;
   }
-
   body {
     background: white !important;
     padding: 0;
     margin: 0;
   }
-
   .print-landscape {
     size: landscape;
   }
-
   .print-portrait {
     size: portrait;
   }
-
-  /* Hide UI elements during print */
-  .print\:hidden, 
-  header[role="banner"], 
-  nav, 
-  footer, 
-  [role="dialog"],
-  .formula-bar,
-  .toolbar {
+  .print\:hidden {
     display: none !important;
   }
-
   main {
     overflow: visible !important;
     display: block !important;
-    padding: 1in !important;
+    padding: 0.5in !important;
   }
-
-  div[role="grid"] {
-    overflow: visible !important;
-    height: auto !important;
-    width: 100% !important;
-  }
-
-  /* Ensure colors and borders show correctly */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;

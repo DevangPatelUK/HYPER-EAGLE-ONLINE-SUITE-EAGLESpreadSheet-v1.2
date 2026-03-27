@@ -2,11 +2,8 @@
 
 import React, { useRef, useEffect, useState, memo } from 'react';
 import { cn } from '@/lib/utils';
-import { CellData, formatCellValue, evaluateConditionalFormatting, validateValue } from '@/app/lib/formula-engine';
+import { CellData, formatCellValue, evaluateConditionalFormatting } from '@/app/lib/formula-engine';
 import { Lock } from 'lucide-react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { toast } from '@/hooks/use-toast';
-import { FormulaAutocomplete } from './FormulaAutocomplete';
 
 interface CellProps {
   coord: string;
@@ -15,7 +12,7 @@ interface CellProps {
   isInRange: boolean;
   isEditing: boolean;
   initialValue?: string | null;
-  onMouseDown: (coord: string, shiftKey: boolean) => void;
+  onMouseDown: (coord: string, shift: boolean) => void;
   onMouseEnter: (coord: string) => void;
   onDoubleClick: (coord: string) => void;
   onUpdate: (coord: string, value: string) => void;
@@ -23,65 +20,33 @@ interface CellProps {
 }
 
 export const Cell = memo(({
-  coord,
-  data,
-  isActive,
-  isInRange,
-  isEditing,
-  initialValue,
-  onMouseDown,
-  onMouseEnter,
-  onDoubleClick,
-  onUpdate,
-  onFinishEdit,
+  coord, data, isActive, isInRange, isEditing, initialValue,
+  onMouseDown, onMouseEnter, onDoubleClick, onUpdate, onFinishEdit,
 }: CellProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [localValue, setLocalValue] = useState('');
-  const [showAutocomplete, setShowAutocomplete] = useState(false);
 
-  // Sync internal state with prop changes (e.g. formula calculation)
   useEffect(() => {
-    if (!isEditing) {
-      setLocalValue(data?.formula || data?.value || '');
-    } else if (initialValue !== null) {
-      setLocalValue(initialValue);
-    }
+    if (!isEditing) setLocalValue(data?.formula || data?.value || '');
+    else if (initialValue !== null) setLocalValue(initialValue);
   }, [data?.formula, data?.value, isEditing, initialValue]);
 
-  // Handle focus and text selection on edit start
   useEffect(() => {
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
-      if (initialValue === null) {
-        inputRef.current.select();
-      } else {
-        inputRef.current.setSelectionRange(inputRef.current.value.length, inputRef.current.value.length);
-      }
+      if (initialValue === null) inputRef.current.select();
+      else inputRef.current.setSelectionRange(inputRef.current.value.length, inputRef.current.value.length);
     }
   }, [isEditing, initialValue]);
 
-  const handleFinish = (nextKey?: string) => {
+  const handleCommit = (nextKey?: string) => {
     if (isEditing) {
-      const validation = validateValue(localValue, data?.validation);
-      if (validation.valid) {
-        onUpdate(coord, localValue);
-        onFinishEdit(nextKey);
-      } else {
-        toast({ title: 'Invalid Input', description: validation.message, variant: 'destructive' });
-        inputRef.current?.focus();
-      }
+      onUpdate(coord, localValue);
+      onFinishEdit(nextKey);
     }
   };
 
-  const handleBlur = () => {
-    if (isEditing) {
-       const validation = validateValue(localValue, data?.validation);
-       if (validation.valid) onUpdate(coord, localValue);
-       onFinishEdit();
-    }
-  };
-
-  const styleProps = { 
+  const dynamicStyle = {
     backgroundColor: evaluateConditionalFormatting(data || { value: '', formula: '' }).backgroundColor || data?.backgroundColor,
     color: evaluateConditionalFormatting(data || { value: '', formula: '' }).textColor || data?.textColor,
     fontWeight: data?.bold ? 'bold' : 'normal',
@@ -90,65 +55,45 @@ export const Cell = memo(({
     textAlign: data?.align || 'left'
   };
 
-  const cellContent = (
+  return (
     <div
       className={cn(
-        "relative h-full border-r border-b border-border min-w-[120px] flex items-center px-2 text-xs overflow-hidden select-none cursor-cell transition-colors",
+        "relative h-full border-r border-b border-border min-w-[120px] flex items-center px-2 text-xs overflow-hidden select-none transition-colors",
         isInRange && "bg-primary/5",
         isActive && "ring-2 ring-primary ring-inset z-10 bg-primary/10",
-        isEditing && "shadow-lg z-20 bg-white",
+        isEditing && "shadow-xl z-20 bg-white",
         data?.isLocked && "bg-muted/30 cursor-not-allowed",
         data?.wrapText ? "whitespace-normal break-words py-1" : "whitespace-nowrap"
       )}
-      style={styleProps as React.CSSProperties}
+      style={dynamicStyle as React.CSSProperties}
       onMouseDown={(e) => onMouseDown(coord, e.shiftKey)}
       onMouseEnter={() => onMouseEnter(coord)}
       onDoubleClick={() => !data?.isLocked && onDoubleClick(coord)}
     >
-      {data?.comment && <div className="absolute top-0 right-0 border-t-[6px] border-t-accent border-l-[6px] border-l-transparent" />}
-      {data?.isLocked && <div className="absolute bottom-0 right-0 p-0.5 opacity-30 text-primary"><Lock className="h-2 w-2" /></div>}
-
       {isEditing ? (
-        <div className="w-full h-full relative">
-          <input
-            ref={inputRef}
-            className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary"
-            value={localValue}
-            onChange={(e) => { 
-              setLocalValue(e.target.value); 
-              setShowAutocomplete(e.target.value.startsWith('=')); 
-            }}
-            onBlur={handleBlur}
-            onKeyDown={(e) => { 
-              if (['Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-                e.preventDefault();
-                handleFinish(e.key);
-              } else if (e.key === 'Escape') {
-                e.preventDefault();
-                onFinishEdit();
-              }
-            }}
-          />
-          <FormulaAutocomplete 
-            inputValue={localValue} 
-            isOpen={showAutocomplete} 
-            onSelect={(f) => { setLocalValue(`=${f}(`); setShowAutocomplete(false); }} 
-            onClose={() => setShowAutocomplete(false)} 
-          />
-        </div>
+        <input
+          ref={inputRef}
+          className="absolute inset-0 w-full h-full border-none focus:ring-0 outline-none px-2 bg-white text-primary"
+          value={localValue}
+          onChange={(e) => setLocalValue(e.target.value)}
+          onBlur={() => handleCommit()}
+          onKeyDown={(e) => {
+            if (['Enter', 'Tab', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+              e.preventDefault();
+              handleCommit(e.key);
+            } else if (e.key === 'Escape') {
+              onFinishEdit();
+            }
+          }}
+        />
       ) : (
-        <span className={cn("block w-full", data?.wrapText ? "" : "truncate")}>
+        <span className={cn("block w-full", !data?.wrapText && "truncate")}>
           {formatCellValue(data?.value || '', data?.format)}
         </span>
       )}
+      {data?.isLocked && <div className="absolute bottom-0 right-0 p-0.5 opacity-20"><Lock className="h-2 w-2" /></div>}
     </div>
   );
-
-  return data?.comment ? (
-    <TooltipProvider delayDuration={200}>
-      <Tooltip><TooltipTrigger asChild>{cellContent}</TooltipTrigger><TooltipContent>{data.comment}</TooltipContent></Tooltip>
-    </TooltipProvider>
-  ) : cellContent;
 });
 
 Cell.displayName = 'Cell';

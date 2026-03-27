@@ -21,7 +21,6 @@ export type CellData = {
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
-  strikethrough?: boolean;
   wrapText?: boolean;
   align?: 'left' | 'center' | 'right';
   backgroundColor?: string;
@@ -31,7 +30,7 @@ export type CellData = {
   options?: string[];
   rowSpan?: number;
   colSpan?: number;
-  hiddenByMerge?: string; // Coordinate of the primary cell in the merge
+  hiddenByMerge?: string;
   comment?: string;
   validation?: ValidationRule;
   conditionalFormats?: ConditionalFormatRule[];
@@ -112,14 +111,21 @@ export function indexToCoordinate(row: number, col: number): string {
 
 export function parseRange(rangeStr: string): string[] {
   const [start, end] = rangeStr.split(':');
-  if (!start || !end) return [rangeStr];
+  if (!start) return [];
+  if (!end) return [start];
+  
   const startIdx = coordinateToIndex(start);
   const endIdx = coordinateToIndex(end);
-  if (!startIdx || !endIdx) return [rangeStr];
+  if (!startIdx || !endIdx) return [start];
 
   const coords: string[] = [];
-  for (let r = Math.min(startIdx.row, endIdx.row); r <= Math.max(startIdx.row, endIdx.row); r++) {
-    for (let c = Math.min(startIdx.col, endIdx.col); c <= Math.max(startIdx.col, endIdx.col); c++) {
+  const minRow = Math.min(startIdx.row, endIdx.row);
+  const maxRow = Math.max(startIdx.row, endIdx.row);
+  const minCol = Math.min(startIdx.col, endIdx.col);
+  const maxCol = Math.max(startIdx.col, endIdx.col);
+
+  for (let r = minRow; r <= maxRow; r++) {
+    for (let c = minCol; c <= maxCol; c++) {
       coords.push(indexToCoordinate(r, c));
     }
   }
@@ -128,104 +134,71 @@ export function parseRange(rangeStr: string): string[] {
 
 export function formatCellValue(value: string, format?: string): string {
   if (!value) return '';
-  
-  if (value.toUpperCase() === 'TRUE') return '✓';
-  if (value.toUpperCase() === 'FALSE') return '';
-
-  if (isNaN(parseFloat(value))) return value;
   const num = parseFloat(value);
+  if (isNaN(num)) return value;
 
   switch (format) {
     case 'currency':
       return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
     case 'percent':
-      return new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 0 }).format(num / 100);
+      return new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 1 }).format(num / 100);
     case 'number':
-      return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+      return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(num);
     default:
       return value;
   }
 }
 
 export function evaluateConditionalFormatting(data: CellData): Partial<CellData> {
-  if (!data.conditionalFormats || data.conditionalFormats.length === 0) return {};
+  if (!data.conditionalFormats?.length) return {};
+  const val = data.value || '';
+  const num = parseFloat(val);
   
-  const cellValue = data.value || '';
-  const numValue = parseFloat(cellValue);
-  
-  let effectiveStyle: Partial<CellData> = {};
-
   for (const rule of data.conditionalFormats) {
     let match = false;
-    switch (rule.operator) {
-      case 'contains':
-        if (cellValue.toLowerCase().includes(rule.value.toLowerCase())) match = true;
-        break;
-      case 'eq':
-        if (cellValue === rule.value) match = true;
-        break;
-      case 'gt':
-        if (!isNaN(numValue) && numValue > parseFloat(rule.value)) match = true;
-        break;
-      case 'lt':
-        if (!isNaN(numValue) && numValue < parseFloat(rule.value)) match = true;
-        break;
-    }
-
-    if (match) {
-      effectiveStyle = { ...effectiveStyle, ...rule.style };
-    }
+    if (rule.operator === 'contains' && val.includes(rule.value)) match = true;
+    if (rule.operator === 'eq' && val === rule.value) match = true;
+    if (rule.operator === 'gt' && !isNaN(num) && num > parseFloat(rule.value)) match = true;
+    if (rule.operator === 'lt' && !isNaN(num) && num < parseFloat(rule.value)) match = true;
+    if (match) return rule.style;
   }
-
-  return effectiveStyle;
+  return {};
 }
 
 export function validateValue(value: string, rule?: ValidationRule): { valid: boolean; message?: string } {
   if (!rule) return { valid: true };
-  if (!value) return { valid: rule.allowEmpty ?? true };
+  if (!value && rule.allowEmpty) return { valid: true };
+  if (!value && !rule.allowEmpty) return { valid: false, message: 'Cannot be empty' };
 
-  switch (rule.type) {
-    case 'number':
-      const num = parseFloat(value);
-      if (isNaN(num)) return { valid: false, message: 'Value must be a number' };
-      if (rule.min !== undefined && num < rule.min) return { valid: false, message: `Value must be at least ${rule.min}` };
-      if (rule.max !== undefined && num > rule.max) return { valid: false, message: `Value must be at most ${rule.max}` };
-      break;
-    case 'date':
-      if (isNaN(Date.parse(value))) return { valid: false, message: 'Value must be a valid date' };
-      break;
+  if (rule.type === 'number') {
+    const n = parseFloat(value);
+    if (isNaN(n)) return { valid: false, message: 'Must be a number' };
+    if (rule.min !== undefined && n < rule.min) return { valid: false, message: `Min ${rule.min}` };
+    if (rule.max !== undefined && n > rule.max) return { valid: false, message: `Max ${rule.max}` };
   }
-
   return { valid: true };
 }
 
-function getCellValue(
-  fullRef: string, 
-  workbook: WorkbookData, 
-  currentSheetId: string, 
-  visited: Set<string>
-): string {
+function getCellValue(ref: string, workbook: WorkbookData, currentSheetId: string, visited: Set<string>): string {
   let sheetId = currentSheetId;
-  let cellCoord = fullRef;
-
-  if (fullRef.includes('!')) {
-    const parts = fullRef.split('!');
-    const sheetName = parts[0];
-    cellCoord = parts[1];
-    const targetSheet = Object.values(workbook).find(s => s.name.toUpperCase() === sheetName.toUpperCase());
-    if (!targetSheet) return '#REF!';
-    sheetId = targetSheet.id;
+  let coord = ref;
+  if (ref.includes('!')) {
+    const [sheetName, cellCoord] = ref.split('!');
+    const target = Object.values(workbook).find(s => s.name.toUpperCase() === sheetName.toUpperCase());
+    if (!target) return '#REF!';
+    sheetId = target.id;
+    coord = cellCoord;
   }
 
-  const visitKey = `${sheetId}!${cellCoord}`;
+  const visitKey = `${sheetId}!${coord}`;
   if (visited.has(visitKey)) return '#CIRCULAR!';
   
-  const cell = workbook[sheetId]?.data[cellCoord];
+  const cell = workbook[sheetId]?.data[coord];
   if (!cell) return '0';
-  if (!cell.formula || !cell.formula.startsWith('=')) return cell.value || '0';
+  if (!cell.formula?.startsWith('=')) return cell.value || '0';
 
   visited.add(visitKey);
-  const result = evaluateFormula(cellCoord, cell.formula, workbook, sheetId, new Set(visited));
+  const result = evaluateFormula(coord, cell.formula, workbook, sheetId, visited);
   visited.delete(visitKey);
   return result;
 }
@@ -238,107 +211,38 @@ export function evaluateFormula(
   visited: Set<string> = new Set()
 ): string {
   if (!formula.startsWith('=')) return formula;
-  
-  const expression = formula.slice(1).trim().toUpperCase();
+  const expr = formula.slice(1).toUpperCase().trim();
   
   try {
-    const rangeFuncRegex = /^(SUM|AVG|AVERAGE|MIN|MAX|COUNT)\(([^)]+)\)$/;
-    const rangeMatch = expression.match(rangeFuncRegex);
-    
+    const rangeMatch = expr.match(/^(SUM|AVG|AVERAGE|MIN|MAX|COUNT)\(([^)]+)\)$/);
     if (rangeMatch) {
       const func = rangeMatch[1];
       const rangeStr = rangeMatch[2];
-      
-      let targetSheetId = currentSheetId;
-      let effectiveRangeStr = rangeStr;
-
-      if (rangeStr.includes('!')) {
-        const parts = rangeStr.split('!');
-        const sheetName = parts[0];
-        effectiveRangeStr = parts[1];
-        const targetSheet = Object.values(workbook).find(s => s.name.toUpperCase() === sheetName.toUpperCase());
-        if (!targetSheet) return '#REF!';
-        targetSheetId = targetSheet.id;
-      }
-
-      const coords = effectiveRangeStr.includes(':') ? parseRange(effectiveRangeStr) : [effectiveRangeStr];
-      
+      const coords = rangeStr.includes(':') ? parseRange(rangeStr) : [rangeStr];
       const values = coords.map(c => {
-        const val = getCellValue(`${workbook[targetSheetId].name}!${c}`, workbook, currentSheetId, visited);
-        if (val.startsWith('#') && val !== '#CIRCULAR!') throw new Error(val);
-        if (val.toUpperCase() === 'TRUE') return 1;
-        if (val.toUpperCase() === 'FALSE') return 0;
-        return parseFloat(val || '0');
-      }).filter(v => !isNaN(v));
+        const val = parseFloat(getCellValue(c, workbook, currentSheetId, visited));
+        return isNaN(val) ? 0 : val;
+      });
 
       switch (func) {
         case 'SUM': return values.reduce((a, b) => a + b, 0).toString();
         case 'AVG':
-        case 'AVERAGE': return values.length > 0 ? (values.reduce((a, b) => a + b, 0) / values.length).toString() : '0';
-        case 'MIN': return values.length > 0 ? Math.min(...values).toString() : '0';
-        case 'MAX': return values.length > 0 ? Math.max(...values).toString() : '0';
+        case 'AVERAGE': return values.length ? (values.reduce((a, b) => a + b, 0) / values.length).toString() : '0';
+        case 'MIN': return Math.min(...values).toString();
+        case 'MAX': return Math.max(...values).toString();
         case 'COUNT': return values.length.toString();
       }
     }
 
-    if (expression.startsWith('ROUND(')) {
-      const argsStr = expression.slice(6, -1);
-      const args = argsStr.split(',');
-      if (args.length !== 2) return '#NAME?';
-      
-      const valToRound = parseFloat(getCellValue(args[0].trim(), workbook, currentSheetId, visited));
-      const digits = parseInt(args[1].trim());
-      
-      if (isNaN(valToRound) || isNaN(digits)) return '#VALUE!';
-      return (Math.round(valToRound * Math.pow(10, digits)) / Math.pow(10, digits)).toString();
-    }
-
-    if (expression.startsWith('IF(')) {
-      const argsStr = expression.slice(3, -1);
-      const args = argsStr.split(',').map(s => s.trim());
-      if (args.length !== 3) return '#NAME?';
-
-      const condition = args[0];
-      const trueVal = args[1];
-      const falseVal = args[2];
-
-      const processedCondition = condition.replace(/([A-Z0-9_]+!)?[A-Z]+\d+/g, (match) => {
-        let val = getCellValue(match, workbook, currentSheetId, visited);
-        if (val.toUpperCase() === 'TRUE') return 'true';
-        if (val.toUpperCase() === 'FALSE') return 'false';
-        return isNaN(parseFloat(val)) ? `"${val}"` : val;
-      });
-
-      const result = eval(processedCondition);
-      const chosenBranch = result ? trueVal : falseVal;
-
-      if (chosenBranch.match(/([A-Z0-9_]+!)?[A-Z]+\d+$/)) {
-        return getCellValue(chosenBranch, workbook, currentSheetId, visited);
-      }
-      return chosenBranch.replace(/"/g, '');
-    }
-
-    let processedExpr = expression.replace(/([A-Z0-9_]+!)?[A-Z]+\d+/g, (match) => {
+    // Basic arithmetic
+    const processed = expr.replace(/([A-Z]+[0-9]+)/g, (match) => {
       const val = getCellValue(match, workbook, currentSheetId, visited);
-      if (val.startsWith('#') && val !== '#CIRCULAR!') throw new Error(val);
-      if (val.toUpperCase() === 'TRUE') return '1';
-      if (val.toUpperCase() === 'FALSE') return '0';
-      const num = parseFloat(val || '0');
-      return isNaN(num) ? '0' : num.toString();
+      return isNaN(parseFloat(val)) ? '0' : val;
     });
 
-    if (processedExpr.includes('/0') && !processedExpr.includes('/0.')) {
-      return '#DIV/0!';
-    }
-
-    if (/^[0-9+\-*/().\s]+$/.test(processedExpr)) {
-      const result = eval(processedExpr);
-      return isFinite(result) ? result.toString() : '#VALUE!';
-    }
-    
-    return '#NAME?';
-  } catch (e: any) {
-    if (e.message.startsWith('#')) return e.message;
+    const result = eval(processed);
+    return isFinite(result) ? result.toString() : '#VALUE!';
+  } catch (e) {
     return '#ERROR!';
   }
 }
